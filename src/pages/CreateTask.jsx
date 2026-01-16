@@ -1,7 +1,9 @@
 import { useState, useEffect } from 'react';
 import { Plus } from 'lucide-react';
+import { Form, Input, Select, DatePicker, TimePicker, Button, Checkbox, Card } from 'antd';
 import { useAuth } from '../hooks/useAuth';
 import { useNavigate } from 'react-router-dom';
+import dayjs from 'dayjs';
 import api from '../utils/api';
 import { showToast } from '../utils/helpers';
 
@@ -10,16 +12,8 @@ export default function CreateTask() {
     const navigate = useNavigate();
     const [loading, setLoading] = useState(false);
     const [users, setUsers] = useState([]);
-
-    const [formData, setFormData] = useState({
-        task: '',
-        assignedToEmail: '',
-        priority: 'Medium',
-        targetDate: '',
-        targetTime: '',
-        notes: '',
-        isSelfTask: false,
-    });
+    const [form] = Form.useForm();
+    const [isSelfTask, setIsSelfTask] = useState(false);
 
     useEffect(() => {
         fetchUsers();
@@ -35,37 +29,24 @@ export default function CreateTask() {
         }
     };
 
-    const handleChange = (e) => {
-        const { name, value, type, checked } = e.target;
-        setFormData(prev => ({
-            ...prev,
-            [name]: type === 'checkbox' ? checked : value
-        }));
+    const handleSelfTaskChange = (e) => {
+        setIsSelfTask(e.target.checked);
+        if (e.target.checked) {
+            form.setFieldsValue({ assignedToEmail: user.email });
+        } else {
+            form.setFieldsValue({ assignedToEmail: '' });
+        }
     };
 
-    const handleSubmit = async (e) => {
-        e.preventDefault();
-
-        if (!formData.task.trim()) {
-            showToast('Task description is required', 'error');
-            return;
-        }
-
-        if (!formData.assignedToEmail) {
-            showToast('Please select a user to assign the task', 'error');
-            return;
-        }
-
-        if (!formData.targetDate || !formData.targetTime) {
-            showToast('Please select target date and time', 'error');
-            return;
-        }
-
+    const handleSubmit = async (values) => {
         setLoading(true);
 
         try {
+            const targetDate = values.targetDate.format('YYYY-MM-DD');
+            const targetTime = values.targetTime.format('HH:mm');
+
             // Combine date and time into a single Date object
-            const dueDate = new Date(`${formData.targetDate}T${formData.targetTime}`);
+            const dueDate = new Date(`${targetDate}T${targetTime}`);
 
             // Check if due date is in the past
             if (dueDate < new Date()) {
@@ -80,13 +61,13 @@ export default function CreateTask() {
             const diffHours = Math.ceil(diffMs / (1000 * 60 * 60));
 
             const requestData = {
-                task: formData.task,
-                assignedToEmail: formData.assignedToEmail,
-                priority: formData.priority,
+                task: values.task,
+                assignedToEmail: values.assignedToEmail,
+                priority: values.priority,
                 durationType: 'hours',
                 durationValue: diffHours,
-                notes: formData.notes,
-                isSelfTask: formData.isSelfTask,
+                notes: values.notes,
+                isSelfTask: isSelfTask,
             };
 
             const response = await api.post('/tasks', requestData);
@@ -95,15 +76,8 @@ export default function CreateTask() {
                 showToast('Task created successfully!', 'success');
 
                 // Reset form
-                setFormData({
-                    task: '',
-                    assignedToEmail: '',
-                    priority: 'Medium',
-                    targetDate: '',
-                    targetTime: '',
-                    notes: '',
-                    isSelfTask: false,
-                });
+                form.resetFields();
+                setIsSelfTask(false);
 
                 // Navigate to assigned tasks after 1 second
                 setTimeout(() => {
@@ -127,154 +101,136 @@ export default function CreateTask() {
             </div>
 
             {/* Form */}
-            <div className="bg-white rounded-card shadow-card p-6 max-w-3xl">
-                <form onSubmit={handleSubmit} className="space-y-6">
+            <Card className="max-w-3xl shadow-card border-none">
+                <Form
+                    form={form}
+                    layout="vertical"
+                    onFinish={handleSubmit}
+                    initialValues={{
+                        priority: 'Medium',
+                        isSelfTask: false
+                    }}
+                    size="large"
+                >
                     {/* Task Description */}
-                    <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-2">
-                            Task Description <span className="text-danger">*</span>
-                        </label>
-                        <textarea
-                            name="task"
-                            value={formData.task}
-                            onChange={handleChange}
-                            rows="4"
-                            className="w-full px-4 py-2.5 border-2 border-gray-200 rounded-lg focus:border-primary focus:ring-4 focus:ring-primary/10 transition-all outline-none resize-none"
+                    <Form.Item
+                        label={<span className="font-medium text-gray-700">Task Description</span>}
+                        name="task"
+                        rules={[{ required: true, message: 'Please describe the task' }]}
+                    >
+                        <Input.TextArea
+                            rows={4}
                             placeholder="Describe the task in detail..."
-                            required
+                            className="rounded-lg"
                         />
-                    </div>
+                    </Form.Item>
+
+                    {/* Self Task Checkbox */}
+                    <Form.Item name="isSelfTask" valuePropName="checked">
+                        <Checkbox onChange={handleSelfTaskChange}>
+                            This is a self-assigned task
+                        </Checkbox>
+                    </Form.Item>
 
                     {/* Assign To */}
-                    <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-2">
-                            Assign To <span className="text-danger">*</span>
-                        </label>
-                        <select
+                    {!isSelfTask && (
+                        <Form.Item
+                            label={<span className="font-medium text-gray-700">Assign To</span>}
                             name="assignedToEmail"
-                            value={formData.assignedToEmail}
-                            onChange={handleChange}
-                            className="w-full px-4 py-2.5 border-2 border-gray-200 rounded-lg focus:border-primary focus:ring-4 focus:ring-primary/10 transition-all outline-none bg-white"
-                            required
+                            rules={[{ required: true, message: 'Please select a user' }]}
                         >
-                            <option value="">Select a user</option>
-                            {users.map(u => (
-                                <option key={u._id} value={u.email}>
-                                    {u.name} ({u.role?.displayName || u.role}) - {u.email}
-                                </option>
-                            ))}
-                        </select>
-                    </div>
+                            <Select
+                                placeholder="Select a user"
+                                showSearch
+                                optionFilterProp="children"
+                            >
+                                {users.map(u => (
+                                    <Select.Option key={u._id} value={u.email}>
+                                        {u.name} ({u.role?.displayName || u.role}) - {u.email}
+                                    </Select.Option>
+                                ))}
+                            </Select>
+                        </Form.Item>
+                    )}
+
+                    {/* Hidden field for assignedToEmail when self task is checked */}
+                    <Form.Item name="assignedToEmail" hidden>
+                        <Input />
+                    </Form.Item>
 
                     {/* Priority, Date, and Time Row */}
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                         {/* Priority */}
-                        <div>
-                            <label className="block text-sm font-medium text-gray-700 mb-2">
-                                Priority
-                            </label>
-                            <select
-                                name="priority"
-                                value={formData.priority}
-                                onChange={handleChange}
-                                className="w-full px-4 py-2.5 border-2 border-gray-200 rounded-lg focus:border-primary focus:ring-4 focus:ring-primary/10 transition-all outline-none bg-white"
-                            >
-                                <option value="Low">Low</option>
-                                <option value="Medium">Medium</option>
-                                <option value="High">High</option>
-                            </select>
-                        </div>
+                        <Form.Item
+                            label={<span className="font-medium text-gray-700">Priority</span>}
+                            name="priority"
+                        >
+                            <Select>
+                                <Select.Option value="Low">Low</Select.Option>
+                                <Select.Option value="Medium">Medium</Select.Option>
+                                <Select.Option value="High">High</Select.Option>
+                            </Select>
+                        </Form.Item>
 
                         {/* Target Date */}
-                        <div>
-                            <label className="block text-sm font-medium text-gray-700 mb-2">
-                                Target Date <span className="text-danger">*</span>
-                            </label>
-                            <input
-                                type="date"
-                                name="targetDate"
-                                value={formData.targetDate}
-                                onChange={handleChange}
-                                min={new Date().toISOString().split('T')[0]}
-                                className="w-full px-4 py-2.5 border-2 border-gray-200 rounded-lg focus:border-primary focus:ring-4 focus:ring-primary/10 transition-all outline-none"
-                                required
+                        <Form.Item
+                            label={<span className="font-medium text-gray-700">Target Date</span>}
+                            name="targetDate"
+                            rules={[{ required: true, message: 'Please select date' }]}
+                        >
+                            <DatePicker
+                                className="w-full"
+                                disabledDate={(current) => current && current < dayjs().startOf('day')}
                             />
-                        </div>
+                        </Form.Item>
 
                         {/* Target Time */}
-                        <div>
-                            <label className="block text-sm font-medium text-gray-700 mb-2">
-                                Target Time <span className="text-danger">*</span>
-                            </label>
-                            <input
-                                type="time"
-                                name="targetTime"
-                                value={formData.targetTime}
-                                onChange={handleChange}
-                                className="w-full px-4 py-2.5 border-2 border-gray-200 rounded-lg focus:border-primary focus:ring-4 focus:ring-primary/10 transition-all outline-none"
-                                required
+                        <Form.Item
+                            label={<span className="font-medium text-gray-700">Target Time</span>}
+                            name="targetTime"
+                            rules={[{ required: true, message: 'Please select time' }]}
+                        >
+                            <TimePicker
+                                className="w-full"
+                                format="HH:mm"
+                                minuteStep={15}
                             />
-                        </div>
+                        </Form.Item>
                     </div>
 
                     {/* Notes */}
-                    <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-2">
-                            Notes (Optional)
-                        </label>
-                        <textarea
-                            name="notes"
-                            value={formData.notes}
-                            onChange={handleChange}
-                            rows="3"
-                            className="w-full px-4 py-2.5 border-2 border-gray-200 rounded-lg focus:border-primary focus:ring-4 focus:ring-primary/10 transition-all outline-none resize-none"
+                    <Form.Item
+                        label={<span className="font-medium text-gray-700">Notes (Optional)</span>}
+                        name="notes"
+                    >
+                        <Input.TextArea
+                            rows={3}
                             placeholder="Add any additional notes or instructions..."
                         />
-                    </div>
-
-                    {/* Self Task Checkbox */}
-                    <div className="flex items-center gap-2">
-                        <input
-                            type="checkbox"
-                            name="isSelfTask"
-                            checked={formData.isSelfTask}
-                            onChange={handleChange}
-                            className="w-4 h-4 text-primary border-gray-300 rounded focus:ring-primary"
-                        />
-                        <label className="text-sm text-gray-700">
-                            This is a self-assigned task
-                        </label>
-                    </div>
+                    </Form.Item>
 
                     {/* Buttons */}
                     <div className="flex gap-3 pt-4">
-                        <button
-                            type="button"
+                        <Button
+                            size="large"
+                            className="flex-1"
                             onClick={() => navigate(-1)}
-                            className="flex-1 px-6 py-2.5 border-2 border-gray-200 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors font-medium"
                         >
                             Cancel
-                        </button>
-                        <button
-                            type="submit"
-                            disabled={loading}
-                            className="flex-1 px-6 py-2.5 bg-black text-white rounded-lg hover:bg-primary-600 transition-colors font-medium disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                        </Button>
+                        <Button
+                            type="primary"
+                            htmlType="submit"
+                            loading={loading}
+                            size="large"
+                            className="flex-1 bg-black text-white hover:bg-gray-800 border-black"
+                            icon={<Plus className="w-4 h-4" />}
                         >
-                            {loading ? (
-                                <>
-                                    <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
-                                    Creating...
-                                </>
-                            ) : (
-                                <>
-                                    <Plus className="w-5 h-5" />
-                                    Create Task
-                                </>
-                            )}
-                        </button>
+                            Create Task
+                        </Button>
                     </div>
-                </form>
-            </div>
+                </Form>
+            </Card>
         </div>
     );
 }

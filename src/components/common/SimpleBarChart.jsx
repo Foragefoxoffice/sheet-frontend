@@ -1,6 +1,6 @@
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 
-export default function SimpleBarChart({ data, dataKey, fill = '#3B82F6' }) {
+export default function SimpleBarChart({ data, dataKey, fill = '#1877F2' }) {
     return (
         <ResponsiveContainer width="100%" height={250}>
             <BarChart data={data}>

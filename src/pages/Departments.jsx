@@ -1,8 +1,8 @@
 import { useState, useEffect } from 'react';
-import { Building2, UserPlus, Users, Edit, Trash2, Search } from 'lucide-react';
+import { Building2, UserPlus, Users, Edit, Trash2, Search as SearchIcon } from 'lucide-react';
+import { Input, Button, Modal as AntModal } from 'antd';
 import { useAuth } from '../hooks/useAuth';
-import { ROLES } from '../utils/constants';
-import Modal from '../components/common/Modal';
+import Modal from '../components/common/Modal'; // Keeping the custom Modal for forms as pattern
 import CreateDepartmentForm from '../components/features/departments/CreateDepartmentForm';
 import api from '../utils/api';
 import { showToast } from '../utils/helpers';
@@ -50,19 +50,24 @@ export default function Departments() {
         fetchDepartments(); // Refresh the list
     };
 
-    const handleDelete = async (id) => {
-        if (!window.confirm('Are you sure you want to delete this department?')) {
-            return;
-        }
-
-        try {
-            await api.delete(`/departments/${id}`);
-            setDepartments(prev => prev.filter(dept => dept._id !== id));
-            showToast('Department deleted successfully', 'success');
-            fetchDepartments(); // Refresh the list
-        } catch (error) {
-            showToast(error.response?.data?.error || 'Failed to delete department', 'error');
-        }
+    const handleDelete = (id) => {
+        AntModal.confirm({
+            title: 'Delete Department',
+            content: 'Are you sure you want to delete this department? This action cannot be undone.',
+            okText: 'Yes, Delete',
+            okType: 'danger',
+            cancelText: 'Cancel',
+            onOk: async () => {
+                try {
+                    await api.delete(`/departments/${id}`);
+                    setDepartments(prev => prev.filter(dept => dept._id !== id));
+                    showToast('Department deleted successfully', 'success');
+                    fetchDepartments(); // Refresh the list
+                } catch (error) {
+                    showToast(error.response?.data?.error || 'Failed to delete department', 'error');
+                }
+            }
+        });
     };
 
     const filteredDepartments = departments.filter(dept =>
@@ -70,8 +75,11 @@ export default function Departments() {
         dept.description?.toLowerCase().includes(searchQuery.toLowerCase())
     );
 
-    // Check if user has permission
-    if (!user?.permissions?.viewDepartments) {
+    // Check if user has permission - managers should NOT have access
+    const userRoleName = user?.role?.name || user?.role;
+    const isManager = userRoleName === 'manager';
+
+    if (!user?.permissions?.viewDepartments || isManager) {
         return (
             <div className="flex items-center justify-center min-h-[60vh]">
                 <div className="text-center">
@@ -91,27 +99,25 @@ export default function Departments() {
                     <h1 className="text-2xl font-bold text-gray-900">Departments</h1>
                     <p className="text-gray-500 mt-1">Organize your team into departments</p>
                 </div>
-                <button
+                <Button
+                    type="primary"
                     onClick={() => setShowCreateModal(true)}
-                    className="px-6 py-2.5 bg-primary text-black rounded-lg hover:bg-primary-600 transition-colors flex items-center gap-2 font-medium shadow-sm hover:shadow-md"
+                    className="bg-primary hover:bg-primary-600 flex items-center gap-2 h-auto py-2.5 px-6"
+                    icon={<Building2 className="w-5 h-5" />}
                 >
-                    <Building2 className="w-5 h-5" />
                     Add Department
-                </button>
+                </Button>
             </div>
 
             {/* Search */}
             <div className="bg-white rounded-card shadow-card mb-6 p-4">
-                <div className="relative">
-                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
-                    <input
-                        type="text"
-                        placeholder="Search departments..."
-                        value={searchQuery}
-                        onChange={(e) => setSearchQuery(e.target.value)}
-                        className="w-full pl-10 pr-4 py-2 border border-gray-200 rounded-lg focus:border-primary focus:ring-4 focus:ring-primary/10 transition-all outline-none"
-                    />
-                </div>
+                <Input
+                    prefix={<SearchIcon className="w-5 h-5 text-gray-400" />}
+                    placeholder="Search departments..."
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    size="large"
+                />
             </div>
 
             {/* Content */}
@@ -134,13 +140,14 @@ export default function Departments() {
                         {searchQuery ? 'Try adjusting your search' : 'Get started by creating your first department'}
                     </p>
                     {!searchQuery && (
-                        <button
+                        <Button
+                            type="primary"
                             onClick={() => setShowCreateModal(true)}
-                            className="px-6 py-3 bg-primary text-white rounded-lg hover:bg-primary-600 transition-colors inline-flex items-center gap-2 font-medium"
+                            className="bg-primary hover:bg-primary-600 h-auto py-2.5 px-6"
+                            icon={<Building2 className="w-5 h-5" />}
                         >
-                            <Building2 className="w-5 h-5" />
                             Create First Department
-                        </button>
+                        </Button>
                     )}
                 </div>
             ) : (
@@ -173,22 +180,23 @@ export default function Departments() {
                                 )}
                                 <div className="flex items-center gap-2 text-sm text-gray-600">
                                     <Users className="w-4 h-4" />
-                                    <span>{dept.members?.length || 0} members</span>
+                                    <span>{dept.memberCount || 0} members</span>
                                 </div>
                             </div>
 
                             <div className="flex gap-2 pt-4 border-t border-gray-100">
-                                <button className="flex-1 px-4 py-2 border border-gray-200 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors text-sm font-medium flex items-center justify-center gap-2">
-                                    <Edit className="w-4 h-4" />
+                                <Button
+                                    className="flex-1 flex items-center justify-center gap-2"
+                                    icon={<Edit className="w-4 h-4" />}
+                                >
                                     Edit
-                                </button>
+                                </Button>
                                 {user?.permissions?.deleteDepartments && (
-                                    <button
+                                    <Button
+                                        danger
                                         onClick={() => handleDelete(dept._id)}
-                                        className="px-4 py-2 border border-danger-200 text-danger rounded-lg hover:bg-danger-50 transition-colors text-sm font-medium"
-                                    >
-                                        <Trash2 className="w-4 h-4" />
-                                    </button>
+                                        icon={<Trash2 className="w-4 h-4" />}
+                                    />
                                 )}
                             </div>
                         </div>

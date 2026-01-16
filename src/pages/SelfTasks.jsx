@@ -40,7 +40,7 @@ export default function SelfTasks() {
     };
 
     return (
-        <div className="p-6">
+        <div className="max-w-full overflow-hidden">
             {/* Header */}
             <div className="mb-6">
                 <h1 className="text-2xl font-bold text-gray-900 mb-2">Self Tasks</h1>
@@ -62,7 +62,7 @@ export default function SelfTasks() {
                     <p className="text-gray-600">You haven't created any tasks for yourself yet</p>
                 </div>
             ) : (
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                <div className="grid grid-cols-1 pt-5 md:grid-cols-2 lg:grid-cols-3 gap-6">
                     {tasks.map(task => (
                         <TaskCard
                             key={task._id}

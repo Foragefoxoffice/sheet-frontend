@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
-import { Plus, Edit2, Trash2, Shield, Search } from 'lucide-react';
+import { Plus, Edit2, Trash2, Shield, Search as SearchIcon } from 'lucide-react';
+import { Input, Button, Modal as AntModal, Form, Checkbox, Card } from 'antd';
 import { useAuth } from '../hooks/useAuth';
 import Modal from '../components/common/Modal';
 import api from '../utils/api';
@@ -13,12 +14,7 @@ export default function Roles() {
     const [showCreateModal, setShowCreateModal] = useState(false);
     const [showEditModal, setShowEditModal] = useState(false);
     const [selectedRole, setSelectedRole] = useState(null);
-    const [formData, setFormData] = useState({
-        name: '',
-        displayName: '',
-        description: '',
-        permissions: {},
-    });
+    const [form] = Form.useForm();
 
     useEffect(() => {
         fetchRoles();
@@ -72,47 +68,63 @@ export default function Roles() {
     };
 
     const handleCreateRole = () => {
-        setFormData({
-            name: '',
-            displayName: '',
-            description: '',
-            permissions: {},
-        });
+        setSelectedRole(null);
+        form.resetFields();
         setShowCreateModal(true);
     };
 
     const handleEditRole = (role) => {
         setSelectedRole(role);
-        setFormData({
+        form.setFieldsValue({
             name: role.name,
             displayName: role.displayName,
-            description: role.description || '',
-            permissions: role.permissions || {},
+            description: role.description,
+            ...role.permissions
         });
         setShowEditModal(true);
     };
 
-    const handleDeleteRole = async (roleId, roleName) => {
-        if (!window.confirm(`Are you sure you want to delete the role "${roleName}"?`)) return;
-
-        try {
-            await api.delete(`/roles/${roleId}`);
-            showToast('Role deleted successfully', 'success');
-            fetchRoles();
-        } catch (error) {
-            showToast(error.response?.data?.error || 'Failed to delete role', 'error');
-        }
+    const handleDeleteRole = (roleId, roleName) => {
+        AntModal.confirm({
+            title: `Delete Role`,
+            content: `Are you sure you want to delete the role "${roleName}"?`,
+            okText: 'Yes, Delete',
+            okType: 'danger',
+            cancelText: 'Cancel',
+            onOk: async () => {
+                try {
+                    await api.delete(`/roles/${roleId}`);
+                    showToast('Role deleted successfully', 'success');
+                    fetchRoles();
+                } catch (error) {
+                    showToast(error.response?.data?.error || 'Failed to delete role', 'error');
+                }
+            }
+        });
     };
 
-    const handleSubmit = async (e) => {
-        e.preventDefault();
-
+    const handleSubmit = async (values) => {
         try {
-            if (showEditModal) {
-                await api.put(`/roles/${selectedRole._id}`, formData);
+            // Extract permissions from values
+            const permissions = {};
+            Object.keys(values).forEach(key => {
+                if (key !== 'name' && key !== 'displayName' && key !== 'description') {
+                    permissions[key] = values[key];
+                }
+            });
+
+            const roleData = {
+                name: values.name,
+                displayName: values.displayName,
+                description: values.description,
+                permissions
+            };
+
+            if (showEditModal && selectedRole) {
+                await api.put(`/roles/${selectedRole._id}`, roleData);
                 showToast('Role updated successfully', 'success');
             } else {
-                await api.post('/roles', formData);
+                await api.post('/roles', roleData);
                 showToast('Role created successfully', 'success');
             }
 
@@ -124,28 +136,13 @@ export default function Roles() {
         }
     };
 
-    const handlePermissionChange = (permission, value) => {
-        setFormData(prev => ({
-            ...prev,
-            permissions: {
-                ...prev.permissions,
-                [permission]: value,
-            },
-        }));
-    };
-
-    const handleSelectAllCategory = (category, value) => {
+    const handleSelectAllCategory = (category, checked) => {
         const categoryPermissions = permissionCategories[category];
-        const newPermissions = { ...formData.permissions };
-
+        const newValues = {};
         categoryPermissions.forEach(perm => {
-            newPermissions[perm] = value;
+            newValues[perm] = checked;
         });
-
-        setFormData(prev => ({
-            ...prev,
-            permissions: newPermissions,
-        }));
+        form.setFieldsValue(newValues);
     };
 
     const filteredRoles = roles.filter(role =>
@@ -177,28 +174,26 @@ export default function Roles() {
                     <p className="text-gray-600 mt-1">Create and manage user roles with custom permissions</p>
                 </div>
                 {user?.permissions?.createRoles && (
-                    <button
+                    <Button
+                        type="primary"
                         onClick={handleCreateRole}
-                        className="px-4 py-2 bg-primary text-black rounded-lg hover:bg-primary-600 transition-colors flex items-center gap-2"
+                        className="bg-primary hover:bg-primary-600 flex items-center gap-2 h-auto py-2.5 px-6"
+                        icon={<Plus className="w-5 h-5" />}
                     >
-                        <Plus className="w-5 h-5" />
                         Create Role
-                    </button>
+                    </Button>
                 )}
             </div>
 
             {/* Search */}
             <div className="bg-white rounded-card shadow-card p-4 mb-6">
-                <div className="relative">
-                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
-                    <input
-                        type="text"
-                        placeholder="Search roles..."
-                        value={searchTerm}
-                        onChange={(e) => setSearchTerm(e.target.value)}
-                        className="w-full pl-10 pr-4 py-2 border-2 border-gray-200 rounded-lg focus:border-primary focus:ring-4 focus:ring-primary/10 outline-none"
-                    />
-                </div>
+                <Input
+                    prefix={<SearchIcon className="w-5 h-5 text-gray-400" />}
+                    placeholder="Search roles..."
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                    size="large"
+                />
             </div>
 
             {/* Roles Grid */}
@@ -221,19 +216,17 @@ export default function Roles() {
                             </div>
                             {!role.isSystem && user?.permissions?.editRoles && (
                                 <div className="flex gap-2">
-                                    <button
+                                    <Button
                                         onClick={() => handleEditRole(role)}
-                                        className="p-2 text-gray-600 hover:text-primary hover:bg-gray-100 rounded-lg transition-colors"
-                                    >
-                                        <Edit2 className="w-4 h-4" />
-                                    </button>
+                                        className="flex items-center justify-center"
+                                        icon={<Edit2 className="w-4 h-4" />}
+                                    />
                                     {user?.permissions?.deleteRoles && (
-                                        <button
+                                        <Button
+                                            danger
                                             onClick={() => handleDeleteRole(role._id, role.displayName)}
-                                            className="p-2 text-gray-600 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
-                                        >
-                                            <Trash2 className="w-4 h-4" />
-                                        </button>
+                                            icon={<Trash2 className="w-4 h-4" />}
+                                        />
                                     )}
                                 </div>
                             )}
@@ -273,89 +266,84 @@ export default function Roles() {
                 title={showEditModal ? 'Edit Role' : 'Create New Role'}
                 size="large"
             >
-                <form onSubmit={handleSubmit} className="space-y-6">
-                    {/* Basic Info */}
+                <Form
+                    form={form}
+                    layout="vertical"
+                    onFinish={handleSubmit}
+                    className="mt-4"
+                >
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <div>
-                            <label className="block text-sm font-medium text-gray-700 mb-2">
-                                Role Name <span className="text-red-500">*</span>
-                            </label>
-                            <input
-                                type="text"
-                                value={formData.name}
-                                onChange={(e) => setFormData({ ...formData, name: e.target.value.toLowerCase().replace(/\s+/g, '') })}
-                                className="w-full px-4 py-2 border-2 border-gray-200 rounded-lg focus:border-primary focus:ring-4 focus:ring-primary/10 outline-none"
+                        <Form.Item
+                            label={<span className="font-medium text-gray-700">Role Name</span>}
+                            name="name"
+                            rules={[{ required: true, message: 'Please enter role name' }]}
+                            help="Lowercase, no spaces (e.g., teamlead)"
+                        >
+                            <Input
                                 placeholder="e.g., teamlead"
-                                required
                                 disabled={showEditModal}
+                                onChange={(e) => {
+                                    form.setFieldsValue({
+                                        name: e.target.value.toLowerCase().replace(/\s+/g, '')
+                                    });
+                                }}
                             />
-                            <p className="text-xs text-gray-500 mt-1">Lowercase, no spaces</p>
-                        </div>
+                        </Form.Item>
 
-                        <div>
-                            <label className="block text-sm font-medium text-gray-700 mb-2">
-                                Display Name <span className="text-red-500">*</span>
-                            </label>
-                            <input
-                                type="text"
-                                value={formData.displayName}
-                                onChange={(e) => setFormData({ ...formData, displayName: e.target.value })}
-                                className="w-full px-4 py-2 border-2 border-gray-200 rounded-lg focus:border-primary focus:ring-4 focus:ring-primary/10 outline-none"
-                                placeholder="e.g., Team Lead"
-                                required
-                            />
-                        </div>
+                        <Form.Item
+                            label={<span className="font-medium text-gray-700">Display Name</span>}
+                            name="displayName"
+                            rules={[{ required: true, message: 'Please enter display name' }]}
+                        >
+                            <Input placeholder="e.g., Team Lead" />
+                        </Form.Item>
                     </div>
 
-                    <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-2">
-                            Description
-                        </label>
-                        <textarea
-                            value={formData.description}
-                            onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-                            className="w-full px-4 py-2 border-2 border-gray-200 rounded-lg focus:border-primary focus:ring-4 focus:ring-primary/10 outline-none"
-                            rows="2"
-                            placeholder="Brief description of this role"
-                        />
-                    </div>
+                    <Form.Item
+                        label={<span className="font-medium text-gray-700">Description</span>}
+                        name="description"
+                    >
+                        <Input.TextArea rows={2} placeholder="Brief description of this role" />
+                    </Form.Item>
 
-                    {/* Permissions */}
                     <div>
                         <h3 className="text-lg font-semibold text-gray-900 mb-4">Permissions</h3>
-                        <div className="space-y-4 max-h-96 overflow-y-auto">
+                        <div className="space-y-4 max-h-96 overflow-y-auto pr-2">
                             {Object.entries(permissionCategories).map(([category, permissions]) => (
                                 <div key={category} className="border border-gray-200 rounded-lg p-4">
                                     <div className="flex items-center justify-between mb-3">
                                         <h4 className="font-medium text-gray-900">{category}</h4>
                                         <div className="flex gap-2">
-                                            <button
-                                                type="button"
+                                            <Button
+                                                size="small"
+                                                type="text"
+                                                className="text-primary hover:bg-primary-50"
                                                 onClick={() => handleSelectAllCategory(category, true)}
-                                                className="text-xs px-2 py-1 text-primary hover:bg-primary-50 rounded"
                                             >
                                                 Select All
-                                            </button>
-                                            <button
-                                                type="button"
+                                            </Button>
+                                            <Button
+                                                size="small"
+                                                type="text"
+                                                className="text-gray-600 hover:bg-gray-100"
                                                 onClick={() => handleSelectAllCategory(category, false)}
-                                                className="text-xs px-2 py-1 text-gray-600 hover:bg-gray-100 rounded"
                                             >
                                                 Deselect All
-                                            </button>
+                                            </Button>
                                         </div>
                                     </div>
                                     <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
                                         {permissions.map((permission) => (
-                                            <label key={permission} className="flex items-center gap-2 cursor-pointer">
-                                                <input
-                                                    type="checkbox"
-                                                    checked={formData.permissions[permission] || false}
-                                                    onChange={(e) => handlePermissionChange(permission, e.target.checked)}
-                                                    className="w-4 h-4 text-primary border-gray-300 rounded focus:ring-primary"
-                                                />
-                                                <span className="text-sm text-gray-700">{permissionLabels[permission]}</span>
-                                            </label>
+                                            <Form.Item
+                                                key={permission}
+                                                name={permission}
+                                                valuePropName="checked"
+                                                className="mb-0"
+                                            >
+                                                <Checkbox>
+                                                    {permissionLabels[permission]}
+                                                </Checkbox>
+                                            </Form.Item>
                                         ))}
                                     </div>
                                 </div>
@@ -363,26 +351,25 @@ export default function Roles() {
                         </div>
                     </div>
 
-                    {/* Actions */}
-                    <div className="flex gap-3 pt-4 border-t border-gray-200">
-                        <button
-                            type="button"
+                    <div className="flex gap-3 pt-4 border-t border-gray-200 mt-4">
+                        <Button
+                            className="flex-1"
                             onClick={() => {
                                 setShowCreateModal(false);
                                 setShowEditModal(false);
                             }}
-                            className="flex-1 px-4 py-2 border-2 border-gray-200 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors"
                         >
                             Cancel
-                        </button>
-                        <button
-                            type="submit"
-                            className="flex-1 px-4 py-2 bg-primary text-black rounded-lg hover:bg-primary-600 transition-colors"
+                        </Button>
+                        <Button
+                            type="primary"
+                            htmlType="submit"
+                            className="flex-1 bg-primary text-white hover:bg-primary-600"
                         >
                             {showEditModal ? 'Update Role' : 'Create Role'}
-                        </button>
+                        </Button>
                     </div>
-                </form>
+                </Form>
             </Modal>
         </div>
     );

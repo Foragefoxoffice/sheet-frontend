@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Users, CheckSquare, TrendingUp, Clock } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
+import { Card } from 'antd';
 import StatCard from '../components/common/StatCard';
 import DonutChart from '../components/common/DonutChart';
 import api from '../utils/api';
@@ -179,7 +180,7 @@ export default function Dashboard() {
                                                 style={{
                                                     backgroundColor:
                                                         item.name === 'Completed' ? '#10B981' :
-                                                            item.name === 'In Progress' ? '#3B82F6' : '#F59E0B'
+                                                            item.name === 'In Progress' ? '#1877F2' : '#F59E0B'
                                                 }}
                                             ></div>
                                             <span className="text-sm text-gray-600">{item.name}</span>
@@ -192,7 +193,7 @@ export default function Dashboard() {
                                                         width: `${(item.value / dashboardData.tasks.total) * 100}%`,
                                                         backgroundColor:
                                                             item.name === 'Completed' ? '#10B981' :
-                                                                item.name === 'In Progress' ? '#3B82F6' : '#F59E0B'
+                                                                item.name === 'In Progress' ? '#1877F2' : '#F59E0B'
                                                     }}
                                                 ></div>
                                             </div>
@@ -283,30 +284,35 @@ export default function Dashboard() {
             <div className="bg-white rounded-card p-6 shadow-card">
                 <h2 className="text-lg font-semibold text-gray-900 mb-4">Quick Actions</h2>
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                    <button
+                    <Card
+                        hoverable
                         onClick={() => navigate('/create-task')}
-                        className="p-4 border-2 border-dashed border-gray-200 rounded-lg hover:border-primary hover:bg-primary-50 transition-all text-left"
+                        className="border-2 border-dashed border-gray-200 rounded-lg hover:border-primary cursor-pointer transition-all"
                     >
                         <div className="text-2xl mb-2">📝</div>
                         <div className="font-medium text-gray-900">Create New Task</div>
                         <div className="text-sm text-gray-500 mt-1">Assign tasks to team members</div>
-                    </button>
-                    <button
+                    </Card>
+
+                    <Card
+                        hoverable
                         onClick={() => navigate('/all-tasks')}
-                        className="p-4 border-2 border-dashed border-gray-200 rounded-lg hover:border-primary hover:bg-primary-50 transition-all text-left"
+                        className="border-2 border-dashed border-gray-200 rounded-lg hover:border-primary cursor-pointer transition-all"
                     >
                         <div className="text-2xl mb-2">📋</div>
                         <div className="font-medium text-gray-900">View All Tasks</div>
                         <div className="text-sm text-gray-500 mt-1">See all your tasks</div>
-                    </button>
-                    <button
+                    </Card>
+
+                    <Card
+                        hoverable
                         onClick={() => navigate('/approvals')}
-                        className="p-4 border-2 border-dashed border-gray-200 rounded-lg hover:border-primary hover:bg-primary-50 transition-all text-left"
+                        className="border-2 border-dashed border-gray-200 rounded-lg hover:border-primary cursor-pointer transition-all"
                     >
                         <div className="text-2xl mb-2">✅</div>
                         <div className="font-medium text-gray-900">Pending Approvals</div>
                         <div className="text-sm text-gray-500 mt-1">Review completed tasks</div>
-                    </button>
+                    </Card>
                 </div>
             </div>
         </div>

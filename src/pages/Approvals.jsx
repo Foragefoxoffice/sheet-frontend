@@ -1,11 +1,11 @@
 import { useState, useEffect } from 'react';
 import { CheckCircle2, XCircle, FileCheck } from 'lucide-react';
+import { Input, Button } from 'antd';
 import { useAuth } from '../hooks/useAuth';
 import Modal from '../components/common/Modal';
 import api from '../utils/api';
 import { showToast } from '../utils/helpers';
 import { formatDate } from '../utils/helpers';
-import { ROLES } from '../utils/constants';
 
 export default function Approvals() {
     const { user } = useAuth();
@@ -59,9 +59,6 @@ export default function Approvals() {
             showToast(error.response?.data?.error || `Failed to ${approvalAction} task`, 'error');
         }
     };
-
-    // No permission check needed - all users can view approvals for tasks they created
-
 
     return (
         <div className="p-6">
@@ -123,20 +120,22 @@ export default function Approvals() {
                                 </div>
 
                                 <div className="flex gap-2 ml-4">
-                                    <button
+                                    <Button
+                                        type="primary"
                                         onClick={() => handleApprovalAction(task, 'approve')}
-                                        className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors flex items-center gap-2"
+                                        className="bg-green-600 hover:bg-green-500 border-none flex items-center gap-2 h-auto py-2"
+                                        icon={<CheckCircle2 className="w-4 h-4" />}
                                     >
-                                        <CheckCircle2 className="w-4 h-4" />
                                         Approve
-                                    </button>
-                                    <button
+                                    </Button>
+                                    <Button
+                                        danger
                                         onClick={() => handleApprovalAction(task, 'reject')}
-                                        className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors flex items-center gap-2"
+                                        className="flex items-center gap-2 h-auto py-2"
+                                        icon={<XCircle className="w-4 h-4" />}
                                     >
-                                        <XCircle className="w-4 h-4" />
                                         Reject
-                                    </button>
+                                    </Button>
                                 </div>
                             </div>
                         </div>
@@ -160,35 +159,38 @@ export default function Approvals() {
                             <label className="block text-sm font-medium text-gray-700 mb-2">
                                 Comments (Optional)
                             </label>
-                            <textarea
+                            <Input.TextArea
                                 value={comments}
                                 onChange={(e) => setComments(e.target.value)}
-                                rows="4"
-                                className="w-full px-4 py-2.5 border-2 border-gray-200 rounded-lg focus:border-primary focus:ring-4 focus:ring-primary/10 transition-all outline-none resize-none"
+                                rows={4}
                                 placeholder="Add any comments..."
+                                size="large"
                             />
                         </div>
 
                         <div className="flex gap-3">
-                            <button
+                            <Button
+                                size="large"
                                 onClick={() => {
                                     setShowApprovalModal(false);
                                     setSelectedTask(null);
                                     setComments('');
                                 }}
-                                className="flex-1 px-4 py-2 border-2 border-gray-200 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors"
+                                className="flex-1"
                             >
                                 Cancel
-                            </button>
-                            <button
+                            </Button>
+                            <Button
+                                type="primary"
+                                size="large"
                                 onClick={submitApproval}
-                                className={`flex-1 px-4 py-2 text-white rounded-lg transition-colors ${approvalAction === 'approve'
-                                    ? 'bg-success hover:bg-success-600'
-                                    : 'bg-danger hover:bg-danger-600'
+                                className={`flex-1 ${approvalAction === 'approve'
+                                    ? 'bg-green-600 hover:bg-green-500'
+                                    : 'bg-red-600 hover:bg-red-500'
                                     }`}
                             >
                                 {approvalAction === 'approve' ? 'Approve' : 'Reject'}
-                            </button>
+                            </Button>
                         </div>
                     </div>
                 </Modal>

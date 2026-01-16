@@ -1,12 +1,11 @@
 import { useState, useEffect } from 'react';
-import { Users as UsersIcon, UserPlus, Mail, Phone, Search, Filter, Edit, Trash2, Building2 } from 'lucide-react';
+import { Users as UsersIcon, UserPlus, Mail, Phone, Search as SearchIcon, Filter, Edit, Trash2, Building2 } from 'lucide-react';
+import { Input, Select, Button, Tabs } from 'antd';
 import { useAuth } from '../hooks/useAuth';
-import { ROLES } from '../utils/constants';
 import Modal from '../components/common/Modal';
 import CreateUserForm from '../components/features/users/CreateUserForm';
 import EditUserForm from '../components/features/users/EditUserForm';
 import api from '../utils/api';
-import { showToast } from '../utils/helpers';
 
 export default function Users() {
     const { user } = useAuth();
@@ -31,8 +30,6 @@ export default function Users() {
             setUsers(response.data.users || []);
         } catch (error) {
             console.error('Error fetching users:', error);
-            // Assuming showToast is defined elsewhere, uncomment if available
-            // showToast('Failed to load users', 'error');
         } finally {
             setLoading(false);
         }
@@ -72,9 +69,7 @@ export default function Users() {
         try {
             await api.delete(`/users/${userId}`);
             setUsers(prev => prev.filter(u => u._id !== userId));
-            // showToast('User deleted successfully', 'success'); // Assuming showToast is defined elsewhere
         } catch (error) {
-            // showToast(error.response?.data?.error || 'Failed to delete user', 'error'); // Assuming showToast is defined elsewhere
             console.error('Failed to delete user:', error);
         }
     };
@@ -95,13 +90,22 @@ export default function Users() {
         }
     };
 
-    const tabs = [
-        { id: 'all', label: 'All Members', count: users.length },
-        { id: 'director', label: 'Directors', count: users.filter(u => u.role?.name === 'director').length },
-        { id: 'generalmanager', label: 'General Managers', count: users.filter(u => u.role?.name === 'generalmanager').length },
-        { id: 'manager', label: 'Managers', count: users.filter(u => u.role?.name === 'manager').length },
-        { id: 'staff', label: 'Staff', count: users.filter(u => u.role?.name === 'staff').length },
+    // Get user role name
+    const userRoleName = user?.role?.name || user?.role;
+
+    // Define all tabs
+    const allTabs = [
+        { key: 'all', label: `All Members (${users.length})` },
+        { key: 'director', label: `Directors (${users.filter(u => u.role?.name === 'director').length})` },
+        { key: 'generalmanager', label: `General Managers (${users.filter(u => u.role?.name === 'generalmanager').length})` },
+        { key: 'manager', label: `Managers (${users.filter(u => u.role?.name === 'manager').length})` },
+        { key: 'staff', label: `Staff (${users.filter(u => u.role?.name === 'staff').length})` },
     ];
+
+    // Filter tabs based on user role
+    const tabsItems = userRoleName === 'manager'
+        ? allTabs.filter(tab => ['all', 'manager', 'staff'].includes(tab.key))
+        : allTabs;
 
     const filteredUsers = users.filter(u => {
         const matchesTab = activeTab === 'all' || u.role?.name === activeTab;
@@ -136,63 +140,49 @@ export default function Users() {
                     <h1 className="text-2xl font-bold text-gray-900">Team Members</h1>
                     <p className="text-gray-500 mt-1">Manage your team members and their roles</p>
                 </div>
-                <button
+                <Button
+                    type="primary"
                     onClick={() => setShowCreateModal(true)}
-                    className="px-6 py-2.5 bg-primary text-black rounded-lg hover:bg-primary-600 transition-colors flex items-center gap-2 font-medium shadow-sm hover:shadow-md"
+                    className="bg-primary hover:bg-primary-600 flex items-center gap-2 h-auto py-2.5 px-6"
+                    icon={<UserPlus className="w-5 h-5" />}
                 >
-                    <UserPlus className="w-5 h-5" />
                     Add Member
-                </button>
+                </Button>
             </div>
 
             {/* Tabs and Search */}
             <div className="bg-white rounded-card shadow-card mb-6">
-                <div className="border-b border-gray-200 px-6">
-                    <div className="flex items-center justify-between">
-                        <div className="flex gap-1 -mb-px">
-                            {tabs.map(tab => (
-                                <button
-                                    key={tab.id}
-                                    onClick={() => setActiveTab(tab.id)}
-                                    className={`px-4 py-3 text-sm font-medium border-b-2 transition-colors ${activeTab === tab.id
-                                        ? 'border-primary text-primary'
-                                        : 'border-transparent text-gray-500 hover:text-gray-700'
-                                        }`}
-                                >
-                                    {tab.label} ({tab.count})
-                                </button>
-                            ))}
-                        </div>
-                    </div>
+                <div className="px-6 pt-2">
+                    <Tabs
+                        activeKey={activeTab}
+                        onChange={setActiveTab}
+                        items={tabsItems}
+                    />
                 </div>
 
                 {/* Search and Filter */}
-                <div className="p-4">
+                <div className="p-4 border-t border-gray-100">
                     <div className="flex items-center gap-3">
-                        <div className="flex-1 relative">
-                            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
-                            <input
-                                type="text"
+                        <div className="flex-1">
+                            <Input
+                                prefix={<SearchIcon className="w-4 h-4 text-gray-400" />}
                                 placeholder="Search members..."
                                 value={searchQuery}
                                 onChange={(e) => setSearchQuery(e.target.value)}
-                                className="w-full pl-10 pr-4 py-2 border border-gray-200 rounded-lg focus:border-primary focus:ring-4 focus:ring-primary/10 transition-all outline-none"
+                                size="large"
                             />
                         </div>
-                        <div className="relative">
-                            <Filter className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400 pointer-events-none" />
-                            <select
+                        <div className="w-[200px]">
+                            <Select
                                 value={departmentFilter}
-                                onChange={(e) => setDepartmentFilter(e.target.value)}
-                                className="pl-10 pr-8 py-2 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors text-sm font-medium text-gray-700 bg-white focus:border-primary focus:ring-4 focus:ring-primary/10 outline-none appearance-none cursor-pointer min-w-[180px]"
-                            >
-                                <option value="all">All Departments</option>
-                                {departments.map(dept => (
-                                    <option key={dept._id} value={dept._id}>
-                                        {dept.name}
-                                    </option>
-                                ))}
-                            </select>
+                                onChange={setDepartmentFilter}
+                                style={{ width: '100%' }}
+                                size="large"
+                                options={[
+                                    { value: 'all', label: 'All Departments' },
+                                    ...departments.map(d => ({ value: d._id, label: d.name }))
+                                ]}
+                            />
                         </div>
                     </div>
                 </div>
@@ -218,13 +208,14 @@ export default function Users() {
                         {searchQuery ? 'Try adjusting your search' : 'Get started by creating your first team member'}
                     </p>
                     {!searchQuery && (
-                        <button
+                        <Button
+                            type="primary"
                             onClick={() => setShowCreateModal(true)}
-                            className="px-6 py-3 bg-primary text-white rounded-lg hover:bg-primary-600 transition-colors inline-flex items-center gap-2 font-medium"
+                            className="bg-primary hover:bg-primary-600 h-auto py-2.5 px-6"
+                            icon={<UserPlus className="w-5 h-5" />}
                         >
-                            <UserPlus className="w-5 h-5" />
                             Create First User
-                        </button>
+                        </Button>
                     )}
                 </div>
             ) : (
@@ -232,7 +223,7 @@ export default function Users() {
                     {filteredUsers.map((member) => (
                         <div key={member._id} className="bg-white rounded-card shadow-card p-6 hover:shadow-card-hover transition-shadow">
                             <div className="flex items-start justify-between mb-4">
-                                <div className="w-12 h-12 bg-gradient-to-br from-primary to-purple rounded-full flex items-center justify-center text-white font-semibold text-lg">
+                                <div className="w-12 h-12 bg-linear-to-br from-primary to-purple-600 rounded-full flex items-center justify-center text-white font-semibold text-lg">
                                     {member.name.charAt(0).toUpperCase()}
                                 </div>
                                 <span className={`px-3 py-1 rounded-full text-xs font-medium ${getRoleBadgeColor(member.role)}`}>
@@ -262,19 +253,18 @@ export default function Users() {
                             </div>
 
                             <div className="flex gap-2">
-                                <button
+                                <Button
                                     onClick={() => handleEdit(member)}
-                                    className="flex-1 px-4 py-2 border border-gray-200 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors text-sm font-medium flex items-center justify-center gap-1"
+                                    className="flex-1 flex items-center justify-center gap-1"
+                                    icon={<Edit className="w-4 h-4" />}
                                 >
-                                    <Edit className="w-4 h-4" />
                                     Edit
-                                </button>
-                                <button
+                                </Button>
+                                <Button
+                                    danger
                                     onClick={() => handleDelete(member._id)}
-                                    className="px-4 py-2 border border-danger-200 text-danger rounded-lg hover:bg-danger-50 transition-colors text-sm font-medium"
-                                >
-                                    <Trash2 className="w-4 h-4" />
-                                </button>
+                                    icon={<Trash2 className="w-4 h-4" />}
+                                />
                             </div>
                         </div>
                     ))}

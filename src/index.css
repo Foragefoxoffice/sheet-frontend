@@ -4,12 +4,32 @@
 
 :root {
   --sidebar-width: 280px;
+  /* Facebook Blue Theme Colors */
+  --primary: #1877F2;
+  --primary-50: #E7F3FF;
+  --primary-100: #D0E7FF;
+  --primary-200: #A8D4FF;
+  --primary-300: #7ABAFF;
+  --primary-400: #4A9EFF;
+  --primary-500: #1877F2;
+  --primary-600: #0C63D4;
+  --primary-700: #0952B8;
+  --primary-800: #07419C;
+  --primary-900: #053180;
 }
 
 body {
   font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
   margin: 0;
   padding: 0;
+}
+
+input,
+button,
+select,
+optgroup,
+textarea {
+  color: revert-layer;
 }
 
 /* Custom scrollbar */
@@ -36,12 +56,43 @@ body {
   transition: background-color 0.2s ease, border-color 0.2s ease, color 0.2s ease;
 }
 
-/* Remove transition from specific elements */
+/* Slide down animation for floating search */
+@keyframes slideDown {
+  from {
+    opacity: 0;
+    transform: translateY(-10px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.animate-slideDown {
+  animation: slideDown 0.3s ease-out;
+}
+
+/* Shimmer animation for task cards */
+@keyframes shimmer {
+  0% {
+    transform: translateX(-100%);
+  }
+
+  100% {
+    transform: translateX(100%);
+  }
+}
+
+.animate-shimmer {
+  animation: shimmer 2s infinite;
+}
+
+/* Fix color inheritance but allow transitions for Ant Design */
 input,
 textarea,
-select,
-button {
-  transition: none;
+select {
+  color: revert;
 }
 
 /* Mobile-specific utilities */
@@ -89,4 +140,319 @@ button {
 html {
   scroll-behavior: smooth;
   -webkit-overflow-scrolling: touch;
+}
+
+/* ============================================ */
+/* Facebook Blue Theme - Custom CSS Classes */
+/* ============================================ */
+
+/* Background Colors */
+.bg-primary {
+  background-color: var(--primary-500) !important;
+}
+
+.bg-primary-50 {
+  background-color: var(--primary-50) !important;
+}
+
+.bg-primary-100 {
+  background-color: var(--primary-100) !important;
+}
+
+.bg-primary-200 {
+  background-color: var(--primary-200) !important;
+}
+
+.bg-primary-300 {
+  background-color: var(--primary-300) !important;
+}
+
+.bg-primary-400 {
+  background-color: var(--primary-400) !important;
+}
+
+.bg-primary-500 {
+  background-color: var(--primary-500) !important;
+}
+
+.bg-primary-600 {
+  background-color: var(--primary-600) !important;
+}
+
+.bg-primary-700 {
+  background-color: var(--primary-700) !important;
+}
+
+.bg-primary-800 {
+  background-color: var(--primary-800) !important;
+}
+
+.bg-primary-900 {
+  background-color: var(--primary-900) !important;
+}
+
+/* Text Colors */
+.text-primary {
+  color: var(--primary-500) !important;
+}
+
+.text-primary-50 {
+  color: var(--primary-50) !important;
+}
+
+.text-primary-100 {
+  color: var(--primary-100) !important;
+}
+
+.text-primary-200 {
+  color: var(--primary-200) !important;
+}
+
+.text-primary-300 {
+  color: var(--primary-300) !important;
+}
+
+.text-primary-400 {
+  color: var(--primary-400) !important;
+}
+
+.text-primary-500 {
+  color: var(--primary-500) !important;
+}
+
+.text-primary-600 {
+  color: var(--primary-600) !important;
+}
+
+.text-primary-700 {
+  color: var(--primary-700) !important;
+}
+
+.text-primary-800 {
+  color: var(--primary-800) !important;
+}
+
+.text-primary-900 {
+  color: var(--primary-900) !important;
+}
+
+/* Border Colors */
+.border-primary {
+  border-color: var(--primary-500) !important;
+}
+
+.border-primary-50 {
+  border-color: var(--primary-50) !important;
+}
+
+.border-primary-100 {
+  border-color: var(--primary-100) !important;
+}
+
+.border-primary-200 {
+  border-color: var(--primary-200) !important;
+}
+
+.border-primary-300 {
+  border-color: var(--primary-300) !important;
+}
+
+.border-primary-400 {
+  border-color: var(--primary-400) !important;
+}
+
+.border-primary-500 {
+  border-color: var(--primary-500) !important;
+}
+
+.border-primary-600 {
+  border-color: var(--primary-600) !important;
+}
+
+.border-primary-700 {
+  border-color: var(--primary-700) !important;
+}
+
+.border-primary-800 {
+  border-color: var(--primary-800) !important;
+}
+
+.border-primary-900 {
+  border-color: var(--primary-900) !important;
+}
+
+/* Hover States - Background */
+.hover\:bg-primary:hover {
+  background-color: var(--primary-500) !important;
+}
+
+.hover\:bg-primary-50:hover {
+  background-color: var(--primary-50) !important;
+}
+
+.hover\:bg-primary-100:hover {
+  background-color: var(--primary-100) !important;
+}
+
+.hover\:bg-primary-600:hover {
+  background-color: var(--primary-600) !important;
+}
+
+.hover\:bg-primary-700:hover {
+  background-color: var(--primary-700) !important;
+}
+
+.hover\:bg-primary-800:hover {
+  background-color: var(--primary-800) !important;
+}
+
+/* Hover States - Text */
+.hover\:text-primary:hover {
+  color: var(--primary-500) !important;
+}
+
+.hover\:text-primary-600:hover {
+  color: var(--primary-600) !important;
+}
+
+.hover\:text-primary-700:hover {
+  color: var(--primary-700) !important;
+}
+
+/* Hover States - Border */
+.hover\:border-primary:hover {
+  border-color: var(--primary-500) !important;
+}
+
+.hover\:border-primary-600:hover {
+  border-color: var(--primary-600) !important;
+}
+
+/* Focus States */
+.focus\:border-primary:focus {
+  border-color: var(--primary-500) !important;
+}
+
+.focus\:border-primary-500:focus {
+  border-color: var(--primary-500) !important;
+}
+
+.focus\:ring-primary:focus {
+  --tw-ring-color: var(--primary-500) !important;
+}
+
+.focus\:ring-primary-100:focus {
+  --tw-ring-color: var(--primary-100) !important;
+}
+
+/* Gradients */
+.from-primary {
+  --tw-gradient-from: var(--primary-500) !important;
+  --tw-gradient-to: rgb(24 119 242 / 0) !important;
+  --tw-gradient-stops: var(--tw-gradient-from), var(--tw-gradient-to) !important;
+}
+
+.from-primary-500 {
+  --tw-gradient-from: var(--primary-500) !important;
+  --tw-gradient-to: rgb(24 119 242 / 0) !important;
+  --tw-gradient-stops: var(--tw-gradient-from), var(--tw-gradient-to) !important;
+}
+
+.from-primary-600 {
+  --tw-gradient-from: var(--primary-600) !important;
+  --tw-gradient-to: rgb(12 99 212 / 0) !important;
+  --tw-gradient-stops: var(--tw-gradient-from), var(--tw-gradient-to) !important;
+}
+
+.from-primary-700 {
+  --tw-gradient-from: var(--primary-700) !important;
+  --tw-gradient-to: rgb(9 82 184 / 0) !important;
+  --tw-gradient-stops: var(--tw-gradient-from), var(--tw-gradient-to) !important;
+}
+
+.to-primary {
+  --tw-gradient-to: var(--primary-500) !important;
+}
+
+.to-primary-200 {
+  --tw-gradient-to: var(--primary-200) !important;
+}
+
+.to-primary-700 {
+  --tw-gradient-to: var(--primary-700) !important;
+}
+
+.to-primary-800 {
+  --tw-gradient-to: var(--primary-800) !important;
+}
+
+.via-primary-700 {
+  --tw-gradient-to: rgb(9 82 184 / 0) !important;
+  --tw-gradient-stops: var(--tw-gradient-from), var(--primary-700), var(--tw-gradient-to) !important;
+}
+
+/* Ring Colors (for focus states) */
+.ring-primary {
+  --tw-ring-color: var(--primary-500) !important;
+}
+
+.ring-primary-100 {
+  --tw-ring-color: var(--primary-100) !important;
+}
+
+/* Group Hover States */
+.group:hover .group-hover\:bg-primary {
+  background-color: var(--primary-500) !important;
+}
+
+.group:hover .group-hover\:text-primary {
+  color: var(--primary-500) !important;
+}
+
+/* Divide Colors */
+.divide-primary> :not([hidden])~ :not([hidden]) {
+  border-color: var(--primary-500) !important;
+}
+
+/* Placeholder Colors */
+.placeholder-primary::placeholder {
+  color: var(--primary-500) !important;
+}
+
+/* Additional utility classes */
+.bg-gradient-to-br {
+  background-image: linear-gradient(to bottom right, var(--tw-gradient-stops)) !important;
+}
+
+.bg-gradient-to-r {
+  background-image: linear-gradient(to right, var(--tw-gradient-stops)) !important;
+}
+
+/* Loading spinner with primary color */
+.border-primary.border-t-transparent {
+  border-top-color: transparent !important;
+}
+
+/* Nice scrollbar for mobile horizontal scrolling */
+.nice-scrollbar {
+  scrollbar-width: thin;
+  scrollbar-color: #cbd5e0 #f7fafc;
+}
+
+.nice-scrollbar::-webkit-scrollbar {
+  height: 6px;
+}
+
+.nice-scrollbar::-webkit-scrollbar-track {
+  background: #f7fafc;
+  border-radius: 3px;
+}
+
+.nice-scrollbar::-webkit-scrollbar-thumb {
+  background: #cbd5e0;
+  border-radius: 3px;
+}
+
+.nice-scrollbar::-webkit-scrollbar-thumb:hover {
+  background: #a0aec0;
 }

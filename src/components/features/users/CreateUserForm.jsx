@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { UserPlus } from 'lucide-react';
+import { Form, Input, Select, Button } from 'antd';
 import { useAuth } from '../../../hooks/useAuth';
 import api from '../../../utils/api';
 import { showToast } from '../../../utils/helpers';
@@ -9,14 +10,8 @@ export default function CreateUserForm({ onSuccess, onCancel, departments = [] }
     const [loading, setLoading] = useState(false);
     const [availableRoles, setAvailableRoles] = useState([]);
     const [loadingRoles, setLoadingRoles] = useState(true);
-    const [formData, setFormData] = useState({
-        name: '',
-        email: '',
-        whatsapp: '',
-        password: '',
-        role: '',
-        department: '',
-    });
+    const [form] = Form.useForm();
+    const [requiresDepartment, setRequiresDepartment] = useState(false);
 
     useEffect(() => {
         fetchAvailableRoles();
@@ -31,10 +26,9 @@ export default function CreateUserForm({ onSuccess, onCancel, departments = [] }
 
             // Set default role to the lowest level available
             if (roles.length > 0) {
-                setFormData(prev => ({
-                    ...prev,
-                    role: roles[roles.length - 1]._id // Last role is lowest level
-                }));
+                const defaultRole = roles[roles.length - 1];
+                form.setFieldsValue({ role: defaultRole._id });
+                updateDepartmentRequirement(defaultRole._id, roles);
             }
         } catch (error) {
             console.error('Error fetching available roles:', error);
@@ -44,64 +38,37 @@ export default function CreateUserForm({ onSuccess, onCancel, departments = [] }
         }
     };
 
-    const handleChange = (e) => {
-        const { name, value } = e.target;
-        setFormData(prev => ({
-            ...prev,
-            [name]: value
-        }));
+    const updateDepartmentRequirement = (roleId, rolesList = availableRoles) => {
+        const selectedRole = rolesList.find(r => r._id === roleId);
+        const required = selectedRole?.name === 'manager' || selectedRole?.name === 'staff';
+        setRequiresDepartment(required);
     };
 
-    const handleWhatsappChange = (e) => {
-        const value = e.target.value.replace(/\D/g, '').substring(0, 10);
-        setFormData(prev => ({
-            ...prev,
-            whatsapp: value
-        }));
+    const handleRoleChange = (value) => {
+        updateDepartmentRequirement(value);
+        // Clear department if switching to a role that doesn't need it? No, keep it.
     };
 
-    const handleSubmit = async (e) => {
-        e.preventDefault();
-
-        // Validation
-        if (!formData.name.trim()) {
-            showToast('Name is required', 'error');
-            return;
-        }
-
-        if (!formData.email.trim() || !formData.email.includes('@')) {
-            showToast('Valid email is required', 'error');
-            return;
-        }
-
-        if (formData.whatsapp.length !== 10) {
-            showToast('WhatsApp number must be 10 digits', 'error');
-            return;
-        }
-
-        if (formData.password.length < 6) {
-            showToast('Password must be at least 6 characters', 'error');
-            return;
-        }
-
-        if (!formData.role) {
-            showToast('Please select a role', 'error');
-            return;
-        }
-
+    const handleSubmit = async (values) => {
         setLoading(true);
 
         try {
             // Format whatsapp with country code
-            const formattedWhatsapp = '91' + formData.whatsapp;
+            const formattedWhatsapp = '91' + values.whatsapp;
 
-            const response = await api.post('/auth/register', {
-                ...formData,
+            const requestData = {
+                name: values.name,
+                email: values.email,
+                password: values.password,
+                role: values.role,
+                department: values.department,
                 whatsapp: formattedWhatsapp,
-            });
+            };
+
+            const response = await api.post('/auth/register', requestData);
 
             if (response.data.success) {
-                showToast(`User ${formData.name} created successfully!`, 'success');
+                showToast(`User ${values.name} created successfully!`, 'success');
                 onSuccess(response.data.user);
             }
         } catch (error) {
@@ -127,162 +94,146 @@ export default function CreateUserForm({ onSuccess, onCancel, departments = [] }
         return (
             <div className="text-center py-12">
                 <p className="text-gray-600 mb-4">You don't have permission to create users with any roles.</p>
-                <button
-                    onClick={onCancel}
-                    className="px-6 py-2.5 border-2 border-gray-200 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors font-medium"
-                >
-                    Close
-                </button>
+                <Button onClick={onCancel}>Close</Button>
             </div>
         );
     }
 
     return (
-        <form onSubmit={handleSubmit} className="space-y-5">
-            {/* Name */}
-            <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Full Name <span className="text-danger">*</span>
-                </label>
-                <input
-                    type="text"
-                    name="name"
-                    value={formData.name}
-                    onChange={handleChange}
-                    className="w-full px-4 py-2.5 border-2 border-gray-200 rounded-lg focus:border-primary focus:ring-4 focus:ring-primary/10 transition-all outline-none"
-                    placeholder="Enter full name"
-                    required
-                />
-            </div>
+        <Form
+            form={form}
+            layout="vertical"
+            onFinish={handleSubmit}
+            className="space-y-4"
+            initialValues={{
+                whatsapp: '',
+            }}
+        >
+            <Form.Item
+                label={<span className="font-medium text-gray-700">Full Name</span>}
+                name="name"
+                rules={[{ required: true, message: 'Please enter full name' }]}
+            >
+                <Input placeholder="Enter full name" size="large" />
+            </Form.Item>
 
-            {/* Email */}
-            <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Email Address <span className="text-danger">*</span>
-                </label>
-                <input
-                    type="email"
-                    name="email"
-                    value={formData.email}
-                    onChange={handleChange}
-                    className="w-full px-4 py-2.5 border-2 border-gray-200 rounded-lg focus:border-primary focus:ring-4 focus:ring-primary/10 transition-all outline-none"
-                    placeholder="user@company.com"
-                    required
-                />
-            </div>
+            <Form.Item
+                label={<span className="font-medium text-gray-700">Email Address</span>}
+                name="email"
+                rules={[
+                    { required: true, message: 'Please enter email' },
+                    { type: 'email', message: 'Please enter a valid email' }
+                ]}
+            >
+                <Input placeholder="user@company.com" size="large" />
+            </Form.Item>
 
-            {/* WhatsApp */}
-            <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                    WhatsApp Number <span className="text-danger">*</span>
-                </label>
-                <div className="relative">
-                    <span className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-600 font-medium">
-                        +91
+            <Form.Item
+                label={<span className="font-medium text-gray-700">WhatsApp Number</span>}
+                name="whatsapp"
+                rules={[
+                    { required: true, message: 'Please enter WhatsApp number' },
+                    { len: 10, message: 'WhatsApp number must be 10 digits' },
+                    { pattern: /^\d+$/, message: 'Must be digits only' }
+                ]}
+            >
+                <Input
+                    addonBefore="+91"
+                    placeholder="98765 43210"
+                    maxLength={10}
+                    size="large"
+                    onChange={(e) => {
+                        const value = e.target.value.replace(/\D/g, '').substring(0, 10);
+                        form.setFieldsValue({ whatsapp: value });
+                    }}
+                />
+            </Form.Item>
+
+            <Form.Item
+                label={<span className="font-medium text-gray-700">Password</span>}
+                name="password"
+                rules={[
+                    { required: true, message: 'Please enter password' },
+                    { min: 6, message: 'Password must be at least 6 characters' }
+                ]}
+            >
+                <Input.Password placeholder="Minimum 6 characters" size="large" />
+            </Form.Item>
+
+            <Form.Item
+                label={<span className="font-medium text-gray-700">Role</span>}
+                name="role"
+                rules={[{ required: true, message: 'Please select a role' }]}
+                help={
+                    <span className="text-xs text-gray-500">
+                        {(() => {
+                            const userRoleName = user?.role?.name || user?.role;
+                            if (userRoleName === 'superadmin') return 'As Super Admin, you can create: Director, GM, Manager, Staff';
+                            if (userRoleName === 'director') return 'As Director, you can create: GM, Manager, Staff';
+                            if (userRoleName === 'generalmanager') return 'As GM, you can create: Manager, Staff';
+                            if (userRoleName === 'manager') return 'As Manager, you can create: Staff only';
+                            return 'You can only assign roles below your level';
+                        })()}
                     </span>
-                    <input
-                        type="tel"
-                        value={formData.whatsapp}
-                        onChange={handleWhatsappChange}
-                        className="w-full pl-16 pr-4 py-2.5 border-2 border-gray-200 rounded-lg focus:border-primary focus:ring-4 focus:ring-primary/10 transition-all outline-none"
-                        placeholder="98765 43210"
-                        maxLength="10"
-                        required
-                    />
-                </div>
-            </div>
-
-            {/* Password */}
-            <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Password <span className="text-danger">*</span>
-                </label>
-                <input
-                    type="password"
-                    name="password"
-                    value={formData.password}
-                    onChange={handleChange}
-                    className="w-full px-4 py-2.5 border-2 border-gray-200 rounded-lg focus:border-primary focus:ring-4 focus:ring-primary/10 transition-all outline-none"
-                    placeholder="Minimum 6 characters"
-                    required
-                    minLength="6"
-                />
-            </div>
-
-            {/* Role */}
-            <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Role <span className="text-danger">*</span>
-                </label>
-                <select
-                    name="role"
-                    value={formData.role}
-                    onChange={handleChange}
-                    className="w-full px-4 py-2.5 border-2 border-gray-200 rounded-lg focus:border-primary focus:ring-4 focus:ring-primary/10 transition-all outline-none bg-white"
-                    required
+                }
+            >
+                <Select
+                    placeholder="Select a role"
+                    size="large"
+                    onChange={handleRoleChange}
                 >
-                    <option value="">Select a role</option>
                     {availableRoles.map(role => (
-                        <option key={role._id} value={role._id}>
+                        <Select.Option key={role._id} value={role._id}>
                             {role.displayName} {role.description && `- ${role.description}`}
-                        </option>
+                        </Select.Option>
                     ))}
-                </select>
-                <small className="text-xs text-gray-500 mt-1 block">
-                    You can only assign roles below your level
-                </small>
-            </div>
+                </Select>
+            </Form.Item>
 
-            {/* Department */}
-            <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Department
-                </label>
-                <select
-                    name="department"
-                    value={formData.department || ''}
-                    onChange={handleChange}
-                    className="w-full px-4 py-2.5 border-2 border-gray-200 rounded-lg focus:border-primary focus:ring-4 focus:ring-primary/10 transition-all outline-none bg-white"
+            <Form.Item
+                label={
+                    <span className="font-medium text-gray-700">
+                        Department {requiresDepartment && <span className="text-danger">*</span>}
+                    </span>
+                }
+                name="department"
+                rules={[{ required: requiresDepartment, message: 'Department is required for this role' }]}
+                help={
+                    <span className="text-xs text-gray-500">
+                        {requiresDepartment
+                            ? 'Department is required for Manager and Staff roles'
+                            : 'Assign user to a department for better organization'}
+                    </span>
+                }
+            >
+                <Select
+                    placeholder={requiresDepartment ? 'Select a department (required)' : 'Select a department (optional)'}
+                    size="large"
+                    allowClear
                 >
-                    <option value="">Select a department (optional)</option>
                     {departments?.map(dept => (
-                        <option key={dept._id} value={dept._id}>
+                        <Select.Option key={dept._id} value={dept._id}>
                             {dept.name}
-                        </option>
+                        </Select.Option>
                     ))}
-                </select>
-                <small className="text-xs text-gray-500 mt-1 block">
-                    Assign user to a department for better organization
-                </small>
-            </div>
+                </Select>
+            </Form.Item>
 
-            {/* Buttons */}
-            <div className="flex gap-3 pt-4">
-                <button
-                    type="button"
-                    onClick={onCancel}
-                    className="flex-1 px-6 py-2.5 border-2 border-gray-200 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors font-medium"
-                >
+            <div className="flex gap-3 pt-2">
+                <Button size="large" onClick={onCancel} className="flex-1">
                     Cancel
-                </button>
-                <button
-                    type="submit"
-                    disabled={loading}
-                    className="flex-1 px-6 py-2.5 bg-black text-white rounded-lg hover:bg-primary-600 transition-colors font-medium disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                </Button>
+                <Button
+                    type="primary"
+                    htmlType="submit"
+                    loading={loading}
+                    size="large"
+                    className="flex-1 bg-black text-white hover:bg-gray-800"
+                    icon={<UserPlus className="w-4 h-4" />}
                 >
-                    {loading ? (
-                        <>
-                            <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
-                            Creating...
-                        </>
-                    ) : (
-                        <>
-                            <UserPlus className="w-5 h-5" />
-                            Create User
-                        </>
-                    )}
-                </button>
+                    Create User
+                </Button>
             </div>
-        </form>
+        </Form>
     );
 }

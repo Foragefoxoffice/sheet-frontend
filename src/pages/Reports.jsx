@@ -1,17 +1,20 @@
 import { useState, useEffect } from 'react';
 import { Download, Calendar, Users, CheckSquare, TrendingUp, FileText } from 'lucide-react';
+import { DatePicker, Button, Table, Card } from 'antd';
+import dayjs from 'dayjs';
 import { useAuth } from '../hooks/useAuth';
 import api from '../utils/api';
 import { showToast, formatDate } from '../utils/helpers';
-import { ROLES } from '../utils/constants';
+
+const { RangePicker } = DatePicker;
 
 export default function Reports() {
     const { user } = useAuth();
     const [loading, setLoading] = useState(true);
-    const [dateRange, setDateRange] = useState({
-        startDate: new Date(new Date().setDate(new Date().getDate() - 30)).toISOString().split('T')[0],
-        endDate: new Date().toISOString().split('T')[0],
-    });
+    const [dateRange, setDateRange] = useState([
+        dayjs().subtract(30, 'day'),
+        dayjs()
+    ]);
     const [reportData, setReportData] = useState({
         tasks: [],
         users: [],
@@ -20,7 +23,7 @@ export default function Reports() {
             completedTasks: 0,
             pendingTasks: 0,
             inProgressTasks: 0,
-            overdueTask: 0,
+            overdueTasks: 0,
         }
     });
 
@@ -43,9 +46,8 @@ export default function Reports() {
             // Filter tasks by date range
             const filteredTasks = tasks.filter(task => {
                 const taskDate = new Date(task.createdAt);
-                const start = new Date(dateRange.startDate);
-                const end = new Date(dateRange.endDate);
-                end.setHours(23, 59, 59, 999);
+                const start = dateRange[0].startOf('day').toDate();
+                const end = dateRange[1].endOf('day').toDate();
                 return taskDate >= start && taskDate <= end;
             });
 
@@ -125,7 +127,7 @@ export default function Reports() {
             'Notes': task.notes || 'N/A',
         }));
 
-        downloadCSV(tasksData, `tasks-report-${dateRange.startDate}-to-${dateRange.endDate}.csv`);
+        downloadCSV(tasksData, `tasks-report-${dateRange[0].format('YYYY-MM-DD')}-to-${dateRange[1].format('YYYY-MM-DD')}.csv`);
     };
 
     const downloadUsersReport = () => {
@@ -138,7 +140,7 @@ export default function Reports() {
             'Created At': formatDate(u.createdAt),
         }));
 
-        downloadCSV(usersData, `users-report-${new Date().toISOString().split('T')[0]}.csv`);
+        downloadCSV(usersData, `users-report-${dayjs().format('YYYY-MM-DD')}.csv`);
     };
 
     const downloadStatisticsReport = () => {
@@ -151,10 +153,10 @@ export default function Reports() {
             'Completion Rate': reportData.statistics.totalTasks > 0
                 ? `${((reportData.statistics.completedTasks / reportData.statistics.totalTasks) * 100).toFixed(1)}%`
                 : '0%',
-            'Date Range': `${dateRange.startDate} to ${dateRange.endDate}`,
+            'Date Range': `${dateRange[0].format('YYYY-MM-DD')} to ${dateRange[1].format('YYYY-MM-DD')}`,
         }];
 
-        downloadCSV(statsData, `statistics-report-${new Date().toISOString().split('T')[0]}.csv`);
+        downloadCSV(statsData, `statistics-report-${dayjs().format('YYYY-MM-DD')}.csv`);
     };
 
     // User performance data
@@ -164,12 +166,13 @@ export default function Reports() {
         const total = userTasks.length;
 
         return {
+            key: u._id,
             name: u.name,
             email: u.email,
             role: u.role?.displayName || u.role,
             totalTasks: total,
             completedTasks: completed,
-            completionRate: total > 0 ? ((completed / total) * 100).toFixed(1) : 0,
+            completionRate: total > 0 ? Number(((completed / total) * 100).toFixed(1)) : 0,
         };
     }).filter(u => u.totalTasks > 0).sort((a, b) => b.completedTasks - a.completedTasks);
 
@@ -177,14 +180,66 @@ export default function Reports() {
         const performanceData = userPerformance.map(u => ({
             'Name': u.name,
             'Email': u.email,
-            'Role': u.role?.displayName || u.role,
+            'Role': u.role,
             'Total Tasks': u.totalTasks,
             'Completed Tasks': u.completedTasks,
             'Completion Rate': `${u.completionRate}%`,
         }));
 
-        downloadCSV(performanceData, `user-performance-${dateRange.startDate}-to-${dateRange.endDate}.csv`);
+        downloadCSV(performanceData, `user-performance-${dateRange[0].format('YYYY-MM-DD')}-to-${dateRange[1].format('YYYY-MM-DD')}.csv`);
     };
+
+    const columns = [
+        {
+            title: 'Name',
+            dataIndex: 'name',
+            key: 'name',
+            render: (text, record) => (
+                <div>
+                    <div className="font-medium text-gray-900">{text}</div>
+                    <div className="text-sm text-gray-500">{record.email}</div>
+                </div>
+            )
+        },
+        {
+            title: 'Role',
+            dataIndex: 'role',
+            key: 'role',
+        },
+        {
+            title: 'Total Tasks',
+            dataIndex: 'totalTasks',
+            key: 'totalTasks',
+            align: 'center',
+            sorter: (a, b) => a.totalTasks - b.totalTasks,
+        },
+        {
+            title: 'Completed',
+            dataIndex: 'completedTasks',
+            key: 'completedTasks',
+            align: 'center',
+            sorter: (a, b) => a.completedTasks - b.completedTasks,
+            render: (text) => <span className="text-green-600 font-medium">{text}</span>
+        },
+        {
+            title: 'Completion Rate',
+            dataIndex: 'completionRate',
+            key: 'completionRate',
+            align: 'center',
+            sorter: (a, b) => a.completionRate - b.completionRate,
+            render: (rate) => (
+                <div className="flex items-center justify-center gap-2">
+                    <div className="w-24 h-2 bg-gray-200 rounded-full overflow-hidden">
+                        <div
+                            className="h-full bg-green-500 rounded-full"
+                            style={{ width: `${rate}%` }}
+                        ></div>
+                    </div>
+                    <span className="text-sm font-medium text-gray-900">{rate}%</span>
+                </div>
+            )
+        }
+    ];
 
     if (loading) {
         return (
@@ -214,25 +269,18 @@ export default function Reports() {
                         <Calendar className="w-5 h-5 text-gray-500" />
                         <span className="text-sm font-medium text-gray-700">Date Range:</span>
                     </div>
-                    <input
-                        type="date"
-                        value={dateRange.startDate}
-                        onChange={(e) => setDateRange(prev => ({ ...prev, startDate: e.target.value }))}
-                        className="px-4 py-2 border-2 border-gray-200 rounded-lg focus:border-primary focus:ring-4 focus:ring-primary/10 outline-none"
-                    />
-                    <span className="text-gray-500">to</span>
-                    <input
-                        type="date"
-                        value={dateRange.endDate}
-                        onChange={(e) => setDateRange(prev => ({ ...prev, endDate: e.target.value }))}
-                        className="px-4 py-2 border-2 border-gray-200 rounded-lg focus:border-primary focus:ring-4 focus:ring-primary/10 outline-none"
+                    <RangePicker
+                        value={dateRange}
+                        onChange={setDateRange}
+                        size="large"
+                        allowClear={false}
                     />
                 </div>
             </div>
 
             {/* Statistics Cards */}
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
-                <div className="bg-white rounded-card shadow-card p-4">
+                <Card className="shadow-card border-none">
                     <div className="flex items-center justify-between">
                         <div>
                             <div className="text-sm text-gray-600">Total Tasks</div>
@@ -242,9 +290,9 @@ export default function Reports() {
                         </div>
                         <CheckSquare className="w-10 h-10 text-blue-500" />
                     </div>
-                </div>
+                </Card>
 
-                <div className="bg-white rounded-card shadow-card p-4">
+                <Card className="shadow-card border-none">
                     <div className="flex items-center justify-between">
                         <div>
                             <div className="text-sm text-gray-600">Completed</div>
@@ -254,9 +302,9 @@ export default function Reports() {
                         </div>
                         <CheckSquare className="w-10 h-10 text-green-500" />
                     </div>
-                </div>
+                </Card>
 
-                <div className="bg-white rounded-card shadow-card p-4">
+                <Card className="shadow-card border-none">
                     <div className="flex items-center justify-between">
                         <div>
                             <div className="text-sm text-gray-600">In Progress</div>
@@ -266,9 +314,9 @@ export default function Reports() {
                         </div>
                         <TrendingUp className="w-10 h-10 text-blue-500" />
                     </div>
-                </div>
+                </Card>
 
-                <div className="bg-white rounded-card shadow-card p-4">
+                <Card className="shadow-card border-none">
                     <div className="flex items-center justify-between">
                         <div>
                             <div className="text-sm text-gray-600">Pending</div>
@@ -278,9 +326,9 @@ export default function Reports() {
                         </div>
                         <FileText className="w-10 h-10 text-yellow-500" />
                     </div>
-                </div>
+                </Card>
 
-                <div className="bg-white rounded-card shadow-card p-4">
+                <Card className="shadow-card border-none">
                     <div className="flex items-center justify-between">
                         <div>
                             <div className="text-sm text-gray-600">Overdue</div>
@@ -290,56 +338,64 @@ export default function Reports() {
                         </div>
                         <FileText className="w-10 h-10 text-red-500" />
                     </div>
-                </div>
+                </Card>
             </div>
 
             {/* Download Reports Section */}
             <div className="bg-white rounded-card shadow-card p-6">
                 <h2 className="text-lg font-semibold text-gray-900 mb-4">Download Reports</h2>
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-                    <button
+                    <Button
                         onClick={downloadTasksReport}
-                        className="p-4 border-2 border-gray-200 rounded-lg hover:border-primary hover:bg-primary-50 transition-all flex items-center gap-3"
+                        style={{height: '50px'}}
+                        className="h-auto py-4 flex items-center justify-start gap-3"
+                        block
                     >
                         <Download className="w-5 h-5 text-primary" />
                         <div className="text-left">
                             <div className="font-medium text-gray-900">Tasks Report</div>
                             <div className="text-sm text-gray-500">{reportData.tasks.length} tasks</div>
                         </div>
-                    </button>
+                    </Button>
 
-                    <button
-                        onClick={downloadUsersReport}
-                        className="p-4 border-2 border-gray-200 rounded-lg hover:border-primary hover:bg-primary-50 transition-all flex items-center gap-3"
+                    <Button
+                        onClick={downloadUsersReport}   
+                        style={{height: '50px'}}
+                        className="h-auto py-4 flex items-center justify-start gap-3"
+                        block
                     >
                         <Download className="w-5 h-5 text-primary" />
                         <div className="text-left">
                             <div className="font-medium text-gray-900">Users Report</div>
                             <div className="text-sm text-gray-500">{reportData.users.length} users</div>
                         </div>
-                    </button>
+                    </Button>
 
-                    <button
+                    <Button
                         onClick={downloadStatisticsReport}
-                        className="p-4 border-2 border-gray-200 rounded-lg hover:border-primary hover:bg-primary-50 transition-all flex items-center gap-3"
+                         style={{height: '50px'}}
+                        className="h-auto py-4 flex items-center justify-start gap-3"
+                        block
                     >
                         <Download className="w-5 h-5 text-primary" />
                         <div className="text-left">
                             <div className="font-medium text-gray-900">Statistics</div>
                             <div className="text-sm text-gray-500">Summary data</div>
                         </div>
-                    </button>
+                    </Button>
 
-                    <button
+                    <Button
                         onClick={downloadUserPerformance}
-                        className="p-4 border-2 border-gray-200 rounded-lg hover:border-primary hover:bg-primary-50 transition-all flex items-center gap-3"
+                         style={{height: '50px'}}
+                        className="h-auto py-4 flex items-center justify-start gap-3"
+                        block
                     >
                         <Download className="w-5 h-5 text-primary" />
                         <div className="text-left">
                             <div className="font-medium text-gray-900">Performance</div>
                             <div className="text-sm text-gray-500">User metrics</div>
                         </div>
-                    </button>
+                    </Button>
                 </div>
             </div>
 
@@ -347,43 +403,12 @@ export default function Reports() {
             {userPerformance.length > 0 && (
                 <div className="bg-white rounded-card shadow-card p-6">
                     <h2 className="text-lg font-semibold text-gray-900 mb-4">User Performance</h2>
-                    <div className="overflow-x-auto">
-                        <table className="w-full">
-                            <thead>
-                                <tr className="border-b border-gray-200">
-                                    <th className="text-left py-3 px-4 text-sm font-medium text-gray-700">Name</th>
-                                    <th className="text-left py-3 px-4 text-sm font-medium text-gray-700">Role</th>
-                                    <th className="text-center py-3 px-4 text-sm font-medium text-gray-700">Total Tasks</th>
-                                    <th className="text-center py-3 px-4 text-sm font-medium text-gray-700">Completed</th>
-                                    <th className="text-center py-3 px-4 text-sm font-medium text-gray-700">Completion Rate</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                {userPerformance.map((u, index) => (
-                                    <tr key={index} className="border-b border-gray-100 hover:bg-gray-50">
-                                        <td className="py-3 px-4">
-                                            <div className="font-medium text-gray-900">{u.name}</div>
-                                            <div className="text-sm text-gray-500">{u.email}</div>
-                                        </td>
-                                        <td className="py-3 px-4 text-gray-700">{u.role}</td>
-                                        <td className="py-3 px-4 text-center font-medium">{u.totalTasks}</td>
-                                        <td className="py-3 px-4 text-center font-medium text-green-600">{u.completedTasks}</td>
-                                        <td className="py-3 px-4 text-center">
-                                            <div className="flex items-center justify-center gap-2">
-                                                <div className="w-24 h-2 bg-gray-200 rounded-full overflow-hidden">
-                                                    <div
-                                                        className="h-full bg-green-500 rounded-full"
-                                                        style={{ width: `${u.completionRate}%` }}
-                                                    ></div>
-                                                </div>
-                                                <span className="text-sm font-medium text-gray-900">{u.completionRate}%</span>
-                                            </div>
-                                        </td>
-                                    </tr>
-                                ))}
-                            </tbody>
-                        </table>
-                    </div>
+                    <Table
+                        columns={columns}
+                        dataSource={userPerformance}
+                        pagination={false}
+                        rowKey="key"
+                    />
                 </div>
             )}
         </div>

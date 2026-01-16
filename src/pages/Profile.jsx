@@ -1,5 +1,7 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { Button } from 'antd';
+import { LogOut } from 'lucide-react';
 import { useAuth } from '../hooks/useAuth';
 
 export default function Profile() {
@@ -12,12 +14,12 @@ export default function Profile() {
     };
 
     return (
-        <div className="max-w-2xl mx-auto">
+        <div className="max-w-2xl mx-auto p-6">
             <h1 className="text-2xl md:text-3xl font-bold text-gray-900 mb-6">Profile</h1>
 
             <div className="bg-white rounded-lg shadow-card p-6 mb-6">
                 <div className="flex items-center gap-4 mb-6">
-                    <div className="w-20 h-20 bg-gradient-to-br from-primary to-purple-600 rounded-full flex items-center justify-center">
+                    <div className="w-20 h-20 bg-linear-to-br from-primary to-purple-600 rounded-full flex items-center justify-center">
                         <span className="text-3xl font-bold text-white">
                             {user?.name?.charAt(0).toUpperCase()}
                         </span>
@@ -58,12 +60,16 @@ export default function Profile() {
                 </div>
             </div>
 
-            <button
+            <Button
+                type="primary"
+                danger
+                size="large"
                 onClick={handleLogout}
-                className="w-full md:w-auto px-6 py-3 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors font-medium"
+                className="w-full md:w-auto flex items-center justify-center gap-2"
+                icon={<LogOut className="w-5 h-5" />}
             >
                 Logout
-            </button>
+            </Button>
         </div>
     );
 }

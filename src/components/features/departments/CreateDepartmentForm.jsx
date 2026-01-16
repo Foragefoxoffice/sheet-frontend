@@ -1,47 +1,29 @@
 import { useState } from 'react';
 import { Building2 } from 'lucide-react';
+import { Form, Input, Select, Button } from 'antd';
 import { useAuth } from '../../../hooks/useAuth';
-import { ROLES } from '../../../utils/constants';
 import api from '../../../utils/api';
 import { showToast } from '../../../utils/helpers';
 
 export default function CreateDepartmentForm({ onSuccess, onCancel, managers = [] }) {
     const { user } = useAuth();
     const [loading, setLoading] = useState(false);
-    const [formData, setFormData] = useState({
-        name: '',
-        description: '',
-        manager: '',
-    });
+    const [form] = Form.useForm();
 
-    const handleChange = (e) => {
-        const { name, value } = e.target;
-        setFormData(prev => ({
-            ...prev,
-            [name]: value
-        }));
-    };
-
-    const handleSubmit = async (e) => {
-        e.preventDefault();
-
-        if (!formData.name.trim()) {
-            showToast('Department name is required', 'error');
-            return;
-        }
-
+    const handleSubmit = async (values) => {
         setLoading(true);
 
         try {
             const response = await api.post('/departments', {
-                name: formData.name,
-                description: formData.description,
-                manager: formData.manager || null,
+                name: values.name,
+                description: values.description,
+                manager: values.manager || null,
             });
 
             if (response.data.success) {
-                showToast(`Department "${formData.name}" created successfully!`, 'success');
+                showToast(`Department "${values.name}" created successfully!`, 'success');
                 onSuccess(response.data.department);
+                form.resetFields();
             }
         } catch (error) {
             const errorMessage = error.response?.data?.error || 'Failed to create department';
@@ -52,105 +34,62 @@ export default function CreateDepartmentForm({ onSuccess, onCancel, managers = [
     };
 
     return (
-        <form onSubmit={handleSubmit} className="space-y-5">
-            {/* Department Name */}
-            <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Department Name <span className="text-danger">*</span>
-                </label>
-                <input
-                    type="text"
-                    name="name"
-                    value={formData.name}
-                    onChange={handleChange}
-                    className="w-full px-4 py-2.5 border-2 border-gray-200 rounded-lg focus:border-primary focus:ring-4 focus:ring-primary/10 transition-all outline-none"
-                    placeholder="e.g., Engineering, Sales, Marketing"
-                    required
-                />
-            </div>
+        <Form
+            form={form}
+            layout="vertical"
+            onFinish={handleSubmit}
+            className="space-y-4"
+        >
+            <Form.Item
+                label={<span className="font-medium text-gray-700">Department Name</span>}
+                name="name"
+                rules={[{ required: true, message: 'Please enter department name' }]}
+            >
+                <Input placeholder="e.g., Engineering, Sales, Marketing" size="large" />
+            </Form.Item>
 
-            {/* Description */}
-            <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Description
-                </label>
-                <textarea
-                    name="description"
-                    value={formData.description}
-                    onChange={handleChange}
-                    rows="3"
-                    className="w-full px-4 py-2.5 border-2 border-gray-200 rounded-lg focus:border-primary focus:ring-4 focus:ring-primary/10 transition-all outline-none resize-none"
+            <Form.Item
+                label={<span className="font-medium text-gray-700">Description</span>}
+                name="description"
+            >
+                <Input.TextArea
+                    rows={4}
                     placeholder="Brief description of the department"
+                    size="large"
                 />
-            </div>
+            </Form.Item>
 
-            {/* Manager */}
-            <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Department Manager
-                </label>
-                <select
+            {/* Manager selection can be added here if needed, keeping it minimal as per original */}
+            {(managers && managers.length > 0) && (
+                <Form.Item
+                    label={<span className="font-medium text-gray-700">Manager (Optional)</span>}
                     name="manager"
-                    value={formData.manager}
-                    onChange={handleChange}
-                    className="w-full px-4 py-2.5 border-2 border-gray-200 rounded-lg focus:border-primary focus:ring-4 focus:ring-primary/10 transition-all outline-none bg-white"
                 >
-                    <option value="">Select a manager (optional)</option>
-                    {managers.map(manager => (
-                        <option key={manager.id} value={manager.id}>
-                            {manager.name} ({manager.email})
-                        </option>
-                    ))}
-                </select>
-                <small className="text-xs text-gray-500 mt-1 block">
-                    You can assign a manager now or later
-                </small>
-            </div>
+                    <Select placeholder="Select a manager" size="large" allowClear>
+                        {managers.map(mgr => (
+                            <Select.Option key={mgr.id || mgr._id} value={mgr.id || mgr._id}>
+                                {mgr.name} ({mgr.email})
+                            </Select.Option>
+                        ))}
+                    </Select>
+                </Form.Item>
+            )}
 
-            {/* Info */}
-            <div className="bg-primary-50 border border-primary-200 rounded-lg p-4">
-                <div className="flex gap-3">
-                    <div className="text-primary mt-0.5">
-                        <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
-                            <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" />
-                        </svg>
-                    </div>
-                    <div className="flex-1">
-                        <h4 className="text-sm font-medium text-primary-900 mb-1">Department Info</h4>
-                        <p className="text-sm text-primary-800">
-                            Departments help organize your team. You can assign managers and staff to departments for better task management.
-                        </p>
-                    </div>
-                </div>
-            </div>
-
-            {/* Buttons */}
-            <div className="flex gap-3 pt-4">
-                <button
-                    type="button"
-                    onClick={onCancel}
-                    className="flex-1 px-6 py-2.5 border-2 border-gray-200 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors font-medium"
-                >
+            <div className="flex gap-3 pt-2">
+                <Button size="large" onClick={onCancel} className="flex-1">
                     Cancel
-                </button>
-                <button
-                    type="submit"
-                    disabled={loading}
-                    className="flex-1 px-6 py-2.5 bg-primary text-black rounded-lg hover:bg-primary-600 transition-colors font-medium disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                </Button>
+                <Button
+                    type="primary"
+                    htmlType="submit"
+                    loading={loading}
+                    size="large"
+                    className="flex-1 bg-primary hover:bg-primary-600"
+                    icon={<Building2 className="w-4 h-4" />}
                 >
-                    {loading ? (
-                        <>
-                            <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
-                            Creating...
-                        </>
-                    ) : (
-                        <>
-                            <Building2 className="w-5 h-5" />
-                            Create Department
-                        </>
-                    )}
-                </button>
+                    Create Department
+                </Button>
             </div>
-        </form>
+        </Form>
     );
 }

@@ -76,7 +76,7 @@ export default function MobileMenu({ isOpen, onClose }) {
                     }`}
             >
                 {/* Header */}
-                <div className="bg-gradient-to-br from-primary to-purple-600 p-6 text-white">
+                <div className="bg-linear-to-br from-primary to-purple-600 p-6 text-white">
                     <button
                         onClick={onClose}
                         className="absolute top-4 right-4 p-2 hover:bg-white/20 rounded-lg transition-colors"

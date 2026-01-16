@@ -2,7 +2,7 @@ import { PieChart, Pie, Cell, ResponsiveContainer, Legend } from 'recharts';
 
 const COLORS = {
     Completed: '#10B981',
-    'In Progress': '#3B82F6',
+    'In Progress': '#1877F2',
     Planning: '#F59E0B',
     'On Hold': '#EF4444',
 };

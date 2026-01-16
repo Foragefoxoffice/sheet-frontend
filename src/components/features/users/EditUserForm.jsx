@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Save } from 'lucide-react';
+import { Form, Input, Select, Button } from 'antd';
 import { useAuth } from '../../../hooks/useAuth';
 import api from '../../../utils/api';
 import { showToast } from '../../../utils/helpers';
@@ -9,27 +10,32 @@ export default function EditUserForm({ user: userToEdit, onSuccess, onCancel, de
     const [loading, setLoading] = useState(false);
     const [availableRoles, setAvailableRoles] = useState([]);
     const [loadingRoles, setLoadingRoles] = useState(true);
-
-    // Extract department ID and role ID if they're objects
-    const departmentId = typeof userToEdit?.department === 'object'
-        ? userToEdit?.department?._id
-        : userToEdit?.department;
-
-    const roleId = typeof userToEdit?.role === 'object'
-        ? userToEdit?.role?._id
-        : userToEdit?.role;
-
-    const [formData, setFormData] = useState({
-        name: userToEdit?.name || '',
-        email: userToEdit?.email || '',
-        whatsapp: userToEdit?.whatsapp?.replace('91', '') || '',
-        role: roleId || '',
-        department: departmentId || '',
-    });
+    const [form] = Form.useForm();
 
     useEffect(() => {
         fetchAvailableRoles();
     }, []);
+
+    useEffect(() => {
+        if (userToEdit && availableRoles.length > 0) {
+            // Extract department ID and role ID if they're objects
+            const departmentId = typeof userToEdit.department === 'object'
+                ? userToEdit.department?._id
+                : userToEdit.department;
+
+            const roleId = typeof userToEdit.role === 'object'
+                ? userToEdit.role?._id
+                : userToEdit.role;
+
+            form.setFieldsValue({
+                name: userToEdit.name,
+                email: userToEdit.email,
+                whatsapp: userToEdit.whatsapp?.replace('91', ''),
+                role: roleId,
+                department: departmentId,
+            });
+        }
+    }, [userToEdit, availableRoles, form]);
 
     const fetchAvailableRoles = async () => {
         try {
@@ -56,59 +62,25 @@ export default function EditUserForm({ user: userToEdit, onSuccess, onCancel, de
         }
     };
 
-    const handleChange = (e) => {
-        const { name, value } = e.target;
-        setFormData(prev => ({
-            ...prev,
-            [name]: value
-        }));
-    };
-
-    const handleWhatsappChange = (e) => {
-        const value = e.target.value.replace(/\D/g, '').substring(0, 10);
-        setFormData(prev => ({
-            ...prev,
-            whatsapp: value
-        }));
-    };
-
-    const handleSubmit = async (e) => {
-        e.preventDefault();
-
-        // Validation
-        if (!formData.name.trim()) {
-            showToast('Name is required', 'error');
-            return;
-        }
-
-        if (!formData.email.trim() || !formData.email.includes('@')) {
-            showToast('Valid email is required', 'error');
-            return;
-        }
-
-        if (formData.whatsapp.length !== 10) {
-            showToast('WhatsApp number must be 10 digits', 'error');
-            return;
-        }
-
-        if (!formData.role) {
-            showToast('Please select a role', 'error');
-            return;
-        }
-
+    const handleSubmit = async (values) => {
         setLoading(true);
 
         try {
             // Format whatsapp with country code
-            const formattedWhatsapp = '91' + formData.whatsapp;
+            const formattedWhatsapp = '91' + values.whatsapp;
 
-            const response = await api.put(`/users/${userToEdit._id}`, {
-                ...formData,
+            const requestData = {
+                name: values.name,
+                email: values.email,
+                role: values.role,
+                department: values.department,
                 whatsapp: formattedWhatsapp,
-            });
+            };
+
+            const response = await api.put(`/users/${userToEdit._id}`, requestData);
 
             if (response.data.success) {
-                showToast(`User ${formData.name} updated successfully!`, 'success');
+                showToast(`User ${values.name} updated successfully!`, 'success');
                 onSuccess(response.data.user);
             }
         } catch (error) {
@@ -131,131 +103,95 @@ export default function EditUserForm({ user: userToEdit, onSuccess, onCancel, de
     }
 
     return (
-        <form onSubmit={handleSubmit} className="space-y-5">
-            {/* Name */}
-            <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Full Name <span className="text-danger">*</span>
-                </label>
-                <input
-                    type="text"
-                    name="name"
-                    value={formData.name}
-                    onChange={handleChange}
-                    className="w-full px-4 py-2.5 border-2 border-gray-200 rounded-lg focus:border-primary focus:ring-4 focus:ring-primary/10 transition-all outline-none"
-                    placeholder="Enter full name"
-                    required
+        <Form
+            form={form}
+            layout="vertical"
+            onFinish={handleSubmit}
+            className="space-y-4"
+        >
+            <Form.Item
+                label={<span className="font-medium text-gray-700">Full Name</span>}
+                name="name"
+                rules={[{ required: true, message: 'Please enter full name' }]}
+            >
+                <Input placeholder="Enter full name" size="large" />
+            </Form.Item>
+
+            <Form.Item
+                label={<span className="font-medium text-gray-700">Email Address</span>}
+                name="email"
+                rules={[
+                    { required: true, message: 'Please enter email' },
+                    { type: 'email', message: 'Please enter a valid email' }
+                ]}
+            >
+                <Input placeholder="user@company.com" size="large" />
+            </Form.Item>
+
+            <Form.Item
+                label={<span className="font-medium text-gray-700">WhatsApp Number</span>}
+                name="whatsapp"
+                rules={[
+                    { required: true, message: 'Please enter WhatsApp number' },
+                    { len: 10, message: 'WhatsApp number must be 10 digits' },
+                    { pattern: /^\d+$/, message: 'Must be digits only' }
+                ]}
+            >
+                <Input
+                    addonBefore="+91"
+                    placeholder="98765 43210"
+                    maxLength={10}
+                    size="large"
+                    onChange={(e) => {
+                        const value = e.target.value.replace(/\D/g, '').substring(0, 10);
+                        form.setFieldsValue({ whatsapp: value });
+                    }}
                 />
-            </div>
+            </Form.Item>
 
-            {/* Email */}
-            <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Email Address <span className="text-danger">*</span>
-                </label>
-                <input
-                    type="email"
-                    name="email"
-                    value={formData.email}
-                    onChange={handleChange}
-                    className="w-full px-4 py-2.5 border-2 border-gray-200 rounded-lg focus:border-primary focus:ring-4 focus:ring-primary/10 transition-all outline-none"
-                    placeholder="user@company.com"
-                    required
-                />
-            </div>
-
-            {/* WhatsApp */}
-            <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                    WhatsApp Number <span className="text-danger">*</span>
-                </label>
-                <div className="relative">
-                    <span className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-600 font-medium">
-                        +91
-                    </span>
-                    <input
-                        type="tel"
-                        value={formData.whatsapp}
-                        onChange={handleWhatsappChange}
-                        className="w-full pl-16 pr-4 py-2.5 border-2 border-gray-200 rounded-lg focus:border-primary focus:ring-4 focus:ring-primary/10 transition-all outline-none"
-                        placeholder="98765 43210"
-                        maxLength="10"
-                        required
-                    />
-                </div>
-            </div>
-
-            {/* Role */}
-            <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Role <span className="text-danger">*</span>
-                </label>
-                <select
-                    name="role"
-                    value={formData.role}
-                    onChange={handleChange}
-                    className="w-full px-4 py-2.5 border-2 border-gray-200 rounded-lg focus:border-primary focus:ring-4 focus:ring-primary/10 transition-all outline-none bg-white"
-                    required
-                >
-                    <option value="">Select a role</option>
+            <Form.Item
+                label={<span className="font-medium text-gray-700">Role</span>}
+                name="role"
+                rules={[{ required: true, message: 'Please select a role' }]}
+                help="You can only assign roles below your level"
+            >
+                <Select placeholder="Select a role" size="large">
                     {availableRoles.map(role => (
-                        <option key={role._id} value={role._id}>
+                        <Select.Option key={role._id} value={role._id}>
                             {role.displayName} {role.description && `- ${role.description}`}
-                        </option>
+                        </Select.Option>
                     ))}
-                </select>
-                <small className="text-xs text-gray-500 mt-1 block">
-                    You can only assign roles below your level
-                </small>
-            </div>
+                </Select>
+            </Form.Item>
 
-            {/* Department */}
-            <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Department
-                </label>
-                <select
-                    name="department"
-                    value={formData.department || ''}
-                    onChange={handleChange}
-                    className="w-full px-4 py-2.5 border-2 border-gray-200 rounded-lg focus:border-primary focus:ring-4 focus:ring-primary/10 transition-all outline-none bg-white"
-                >
-                    <option value="">Select a department (optional)</option>
+            <Form.Item
+                label={<span className="font-medium text-gray-700">Department</span>}
+                name="department"
+            >
+                <Select placeholder="Select a department (optional)" size="large" allowClear>
                     {departments?.map(dept => (
-                        <option key={dept._id} value={dept._id}>
+                        <Select.Option key={dept._id} value={dept._id}>
                             {dept.name}
-                        </option>
+                        </Select.Option>
                     ))}
-                </select>
-            </div>
+                </Select>
+            </Form.Item>
 
-            {/* Buttons */}
-            <div className="flex gap-3 pt-4">
-                <button
-                    type="button"
-                    onClick={onCancel}
-                    className="flex-1 px-6 py-2.5 border-2 border-gray-200 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors font-medium"
-                >
+            <div className="flex gap-3 pt-2">
+                <Button size="large" onClick={onCancel} className="flex-1">
                     Cancel
-                </button>
-                <button
-                    type="submit"
-                    disabled={loading}
-                    className="flex-1 px-6 py-2.5 bg-black text-white rounded-lg hover:bg-primary-600 transition-colors font-medium disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                </Button>
+                <Button
+                    type="primary"
+                    htmlType="submit"
+                    loading={loading}
+                    size="large"
+                    className="flex-1 bg-black text-white hover:bg-gray-800"
+                    icon={<Save className="w-4 h-4" />}
                 >
-                    {loading ? (
-                        <>
-                            <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
-                            Updating...
-                        </>
-                    ) : (
-                        <>
-                            <Save className="w-5 h-5" />
-                            Update User
-                        </>
-                    )}
-                </button>
+                    Update User
+                </Button>
             </div>
-        </form>
+        </Form>
     );
 }
