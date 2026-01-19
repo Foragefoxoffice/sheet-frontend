@@ -1,9 +1,9 @@
-import { Clock, User, Calendar, Tag, ChevronDown } from 'lucide-react';
+import { Clock, User, Calendar, Tag, ChevronDown, Pencil, Trash2, UserCheck } from 'lucide-react';
 import { isTaskOverdue, getTimeRemaining, TASK_STATUS } from '../../utils/taskHelpers';
-import { formatDate } from '../../utils/helpers';
+import { formatDateTime } from '../../utils/helpers';
 import { useState } from 'react';
 
-export default function TaskCard({ task, onStatusChange, onView, showActions = true }) {
+export default function TaskCard({ task, onStatusChange, onView, onEdit, onDelete, showActions = true, canEdit = true }) {
     const isOverdue = isTaskOverdue(task.dueDate, task.status);
     const [isChangingStatus, setIsChangingStatus] = useState(false);
 
@@ -49,6 +49,26 @@ export default function TaskCard({ task, onStatusChange, onView, showActions = t
                         </span>
                     )}
                 </div>
+                {(onEdit || onDelete) && (
+                    <div className="flex items-center gap-2">
+                        {onEdit && (
+                            <button
+                                onClick={() => onEdit(task)}
+                                className="p-1 hover:bg-gray-100 rounded text-gray-400 hover:text-blue-600 transition-colors"
+                            >
+                                <Pencil className="w-4 h-4" />
+                            </button>
+                        )}
+                        {onDelete && (
+                            <button
+                                onClick={() => onDelete(task)}
+                                className="p-1 hover:bg-gray-100 rounded text-gray-400 hover:text-red-600 transition-colors"
+                            >
+                                <Trash2 className="w-4 h-4" />
+                            </button>
+                        )}
+                    </div>
+                )}
             </div>
 
             {/* Task Title */}
@@ -64,6 +84,23 @@ export default function TaskCard({ task, onStatusChange, onView, showActions = t
                     <div>
                         <span className="text-gray-500">Assigned to: </span>
                         <span className="font-medium text-gray-900">{task.assignedToName}</span>
+                    </div>
+                </div>
+
+                {/* Assigned By */}
+                <div className="flex items-center gap-2.5 text-sm">
+                    <UserCheck className="w-4 h-4 text-gray-400 shrink-0" />
+                    <div>
+                        <span className="text-gray-500">Assigned by: </span>
+                        <span className="font-medium text-gray-900">
+                            {task.taskGivenByName || task.createdBy?.name || task.createdByEmail || 'Unknown'}
+                        </span>
+                        {/* Display Role or Designation if available and using createdBy details */}
+                        {(!task.taskGivenByName && (task.createdBy?.designation || task.createdBy?.role?.displayName)) && (
+                            <span className="text-xs text-gray-500 ml-1">
+                                ({task.createdBy.designation || task.createdBy.role.displayName})
+                            </span>
+                        )}
                     </div>
                 </div>
 
@@ -83,7 +120,7 @@ export default function TaskCard({ task, onStatusChange, onView, showActions = t
                     <Calendar className="w-4 h-4 text-gray-400 shrink-0" />
                     <div>
                         <span className="text-gray-500">Due: </span>
-                        <span className="font-medium text-gray-900">{formatDate(task.dueDate)}</span>
+                        <span className="font-medium text-gray-900">{formatDateTime(task.dueDate)}</span>
                     </div>
                 </div>
 
@@ -112,24 +149,40 @@ export default function TaskCard({ task, onStatusChange, onView, showActions = t
             {showActions && (
                 <div className="flex gap-2 pt-4 border-t border-gray-100">
                     {/* Status Dropdown */}
-                    <div className="flex-1 relative">
-                        <select
-                            value={task.status}
-                            onChange={(e) => handleStatusChange(e.target.value)}
-                            disabled={isChangingStatus}
-                            className={`w-full px-3 py-2 pr-8 rounded border-2 font-medium text-sm transition-colors outline-none appearance-none cursor-pointer ${task.status === TASK_STATUS.COMPLETED
-                                ? 'bg-green-50 text-green-700 border-green-300 hover:bg-green-100'
+                    {canEdit && task.status !== TASK_STATUS.COMPLETED ? (
+                        <div className="flex-1 relative">
+                            <select
+                                value={task.status}
+                                onChange={(e) => handleStatusChange(e.target.value)}
+                                disabled={isChangingStatus}
+                                className={`w-full px-3 py-2 pr-8 rounded border-2 font-medium text-sm transition-colors outline-none appearance-none cursor-pointer ${task.status === TASK_STATUS.COMPLETED
+                                    ? 'bg-green-50 text-green-700 border-green-300 hover:bg-green-100'
+                                    : task.status === TASK_STATUS.WAITING_FOR_APPROVAL
+                                        ? 'bg-blue-50 text-blue-700 border-blue-300 hover:bg-blue-100'
+                                        : task.status === TASK_STATUS.IN_PROGRESS
+                                            ? 'bg-yellow-50 text-yellow-700 border-yellow-300 hover:bg-yellow-100'
+                                            : 'bg-orange-50 text-orange-700 border-orange-300 hover:bg-orange-100'
+                                    } ${isChangingStatus ? 'opacity-50 cursor-not-allowed' : ''}`}
+                            >
+                                <option value={TASK_STATUS.PENDING}>Pending</option>
+                                <option value={TASK_STATUS.IN_PROGRESS}>In Progress</option>
+                                <option value={TASK_STATUS.WAITING_FOR_APPROVAL}>Waiting for Approval</option>
+                                {/* Completed status can only be set via approval, not by user */}
+                            </select>
+                            <ChevronDown className="absolute right-2 top-1/2 -translate-y-1/2 w-4 h-4 pointer-events-none" />
+                        </div>
+                    ) : (
+                        <div className={`flex-1 px-3 py-2 rounded border-2 font-medium text-sm ${task.status === TASK_STATUS.COMPLETED
+                            ? 'bg-green-50 text-green-700 border-green-300'
+                            : task.status === TASK_STATUS.WAITING_FOR_APPROVAL
+                                ? 'bg-blue-50 text-blue-700 border-blue-300'
                                 : task.status === TASK_STATUS.IN_PROGRESS
-                                    ? 'bg-blue-50 text-blue-700 border-blue-300 hover:bg-blue-100'
-                                    : 'bg-orange-50 text-orange-700 border-orange-300 hover:bg-orange-100'
-                                } ${isChangingStatus ? 'opacity-50 cursor-not-allowed' : ''}`}
-                        >
-                            <option value={TASK_STATUS.PENDING}>Pending</option>
-                            <option value={TASK_STATUS.IN_PROGRESS}>In Progress</option>
-                            <option value={TASK_STATUS.COMPLETED}>Completed</option>
-                        </select>
-                        <ChevronDown className="absolute right-2 top-1/2 -translate-y-1/2 w-4 h-4 pointer-events-none" />
-                    </div>
+                                    ? 'bg-yellow-50 text-yellow-700 border-yellow-300'
+                                    : 'bg-orange-50 text-orange-700 border-orange-300'
+                            }`}>
+                            {task.status}
+                        </div>
+                    )}
 
                     {/* View Button */}
                     {onView && (
@@ -137,7 +190,7 @@ export default function TaskCard({ task, onStatusChange, onView, showActions = t
                             onClick={() => onView(task)}
                             className="px-4 py-2 bg-white text-gray-700 border-2 border-gray-300 rounded hover:bg-gray-50 transition-colors font-medium text-sm"
                         >
-                            View
+                            comments
                         </button>
                     )}
                 </div>

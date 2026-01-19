@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { UserPlus } from 'lucide-react';
-import { Form, Input, Select, Button } from 'antd';
+import { Form, Input, Select, Button, Space } from 'antd';
 import { useAuth } from '../../../hooks/useAuth';
 import api from '../../../utils/api';
 import { showToast } from '../../../utils/helpers';
@@ -62,6 +62,7 @@ export default function CreateUserForm({ onSuccess, onCancel, departments = [] }
                 password: values.password,
                 role: values.role,
                 department: values.department,
+                designation: values.designation,
                 whatsapp: formattedWhatsapp,
             };
 
@@ -118,6 +119,13 @@ export default function CreateUserForm({ onSuccess, onCancel, departments = [] }
             </Form.Item>
 
             <Form.Item
+                label={<span className="font-medium text-gray-700">Designation</span>}
+                name="designation"
+            >
+                <Input placeholder="Enter designation (e.g., Senior Developer)" size="large" />
+            </Form.Item>
+
+            <Form.Item
                 label={<span className="font-medium text-gray-700">Email Address</span>}
                 name="email"
                 rules={[
@@ -137,16 +145,24 @@ export default function CreateUserForm({ onSuccess, onCancel, departments = [] }
                     { pattern: /^\d+$/, message: 'Must be digits only' }
                 ]}
             >
-                <Input
-                    addonBefore="+91"
-                    placeholder="98765 43210"
-                    maxLength={10}
-                    size="large"
-                    onChange={(e) => {
-                        const value = e.target.value.replace(/\D/g, '').substring(0, 10);
-                        form.setFieldsValue({ whatsapp: value });
-                    }}
-                />
+                <Space.Compact style={{ width: '100%' }}>
+                    <Input
+                        style={{ width: '60px' }}
+                        value="+91"
+                        disabled
+                        className="text-center"
+                        size="large"
+                    />
+                    <Input
+                        placeholder="98765 43210"
+                        maxLength={10}
+                        size="large"
+                        onChange={(e) => {
+                            const value = e.target.value.replace(/\D/g, '').substring(0, 10);
+                            form.setFieldsValue({ whatsapp: value });
+                        }}
+                    />
+                </Space.Compact>
             </Form.Item>
 
             <Form.Item
@@ -166,14 +182,9 @@ export default function CreateUserForm({ onSuccess, onCancel, departments = [] }
                 rules={[{ required: true, message: 'Please select a role' }]}
                 help={
                     <span className="text-xs text-gray-500">
-                        {(() => {
-                            const userRoleName = user?.role?.name || user?.role;
-                            if (userRoleName === 'superadmin') return 'As Super Admin, you can create: Director, GM, Manager, Staff';
-                            if (userRoleName === 'director') return 'As Director, you can create: GM, Manager, Staff';
-                            if (userRoleName === 'generalmanager') return 'As GM, you can create: Manager, Staff';
-                            if (userRoleName === 'manager') return 'As Manager, you can create: Staff only';
-                            return 'You can only assign roles below your level';
-                        })()}
+                        {availableRoles.length > 0
+                            ? `You can assign: ${availableRoles.map(r => r.displayName).join(', ')}`
+                            : 'You can only assign roles below your level'}
                     </span>
                 }
             >

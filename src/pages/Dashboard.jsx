@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { Users, CheckSquare, TrendingUp, Clock } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { Card } from 'antd';
+import { useAuth } from '../hooks/useAuth';
 import StatCard from '../components/common/StatCard';
 import DonutChart from '../components/common/DonutChart';
 import api from '../utils/api';
@@ -9,6 +10,7 @@ import { showToast } from '../utils/helpers';
 
 export default function Dashboard() {
     const navigate = useNavigate();
+    const { user } = useAuth();
     const [loading, setLoading] = useState(true);
     const [dashboardData, setDashboardData] = useState({
         users: 0,
@@ -25,6 +27,17 @@ export default function Dashboard() {
         }
     });
 
+    // Permission checks
+    const canViewUsers = user?.permissions?.viewUsers || false;
+    const canViewAllTasks = user?.permissions?.viewAllTasks || false;
+    const canViewDeptTasks = user?.permissions?.viewDepartmentTasks || false;
+    const canCreateTasks = user?.permissions?.createTasks || false;
+    const canApproveTasks = user?.permissions?.approveTasks || false;
+
+    // Determine task scope for display
+    const taskScope = canViewAllTasks ? 'all' : canViewDeptTasks ? 'department' : 'my';
+    const taskScopeLabel = canViewAllTasks ? 'Total Tasks' : canViewDeptTasks ? 'Department Tasks' : 'My Tasks';
+
     useEffect(() => {
         fetchDashboardData();
     }, []);
@@ -33,14 +46,40 @@ export default function Dashboard() {
         try {
             setLoading(true);
 
-            // Fetch all required data
-            const [usersRes, tasksRes, myTasksRes, assignedRes, selfRes] = await Promise.all([
-                api.get('/users/for-tasks'), // Use for-tasks endpoint for all users
-                api.get('/tasks/assigned'), // All tasks I created
-                api.get('/tasks'), // Tasks assigned to me
-                api.get('/tasks/assigned'),
-                api.get('/tasks/self'),
-            ]);
+            const requests = [];
+
+            // Fetch users only if user has permission
+            if (canViewUsers) {
+                requests.push(api.get('/users/for-tasks'));
+            } else {
+                requests.push(Promise.resolve({ data: { count: 0 } }));
+            }
+
+            // Fetch tasks based on permissions
+            if (canViewAllTasks) {
+                // Fetch all tasks
+                requests.push(
+                    api.get('/tasks/assigned'),
+                    api.get('/tasks'),
+                    api.get('/tasks/self')
+                );
+            } else if (canViewDeptTasks) {
+                // Fetch department tasks (backend filters by department)
+                requests.push(
+                    api.get('/tasks/assigned'),
+                    api.get('/tasks'),
+                    api.get('/tasks/self')
+                );
+            } else {
+                // Fetch only my tasks
+                requests.push(
+                    api.get('/tasks'),
+                    Promise.resolve({ data: { tasks: [] } }),
+                    Promise.resolve({ data: { tasks: [] } })
+                );
+            }
+
+            const [usersRes, tasksRes, myTasksRes, selfRes] = await Promise.all(requests);
 
             const allTasks = [
                 ...(tasksRes.data.tasks || []),
@@ -85,7 +124,7 @@ export default function Dashboard() {
         { name: 'Completed', value: dashboardData.tasks.completed },
         { name: 'In Progress', value: dashboardData.tasks.inProgress },
         { name: 'Pending', value: dashboardData.tasks.pending },
-    ].filter(item => item.value > 0); // Only show non-zero values
+    ].filter(item => item.value > 0);
 
     if (loading) {
         return (
@@ -99,7 +138,7 @@ export default function Dashboard() {
     }
 
     return (
-        <div className="p-6 space-y-6">
+        <div className="p-0 md:p-6 space-y-6">
             {/* Header */}
             <div className="flex items-center justify-between">
                 <div>
@@ -119,30 +158,37 @@ export default function Dashboard() {
 
             {/* Statistics Cards */}
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+                {/* Team Members - Only show if user has viewUsers permission */}
+                {canViewUsers && (
+                    <StatCard
+                        title="Team Members"
+                        value={dashboardData.users.toString()}
+                        subtitle="Total users"
+                        icon={Users}
+                        iconBg="bg-blue-50"
+                        iconColor="text-blue-500"
+                    />
+                )}
+
+                {/* Total/Department/My Tasks - Based on permissions */}
                 <StatCard
-                    title="Team Members"
-                    value={dashboardData.users.toString()}
-                    subtitle="Total users"
-                    icon={Users}
-                    iconBg="bg-blue-50"
-                    iconColor="text-blue-500"
-                />
-                <StatCard
-                    title="Total Tasks"
+                    title={taskScopeLabel}
                     value={dashboardData.tasks.total.toString()}
                     subtitle={`${dashboardData.tasks.completed} completed`}
                     icon={CheckSquare}
                     iconBg="bg-green-50"
                     iconColor="text-green-500"
                 />
+
                 <StatCard
-                    title="My Tasks"
+                    title="My Assigned Tasks"
                     value={dashboardData.myTasks.total.toString()}
                     subtitle={`${dashboardData.myTasks.pending} pending`}
                     icon={TrendingUp}
                     iconBg="bg-purple-50"
                     iconColor="text-purple-500"
                 />
+
                 <StatCard
                     title="Overdue Tasks"
                     value={dashboardData.myTasks.overdue.toString()}
@@ -158,7 +204,11 @@ export default function Dashboard() {
                 {/* Task Distribution */}
                 <div className="bg-white rounded-card p-6 shadow-card">
                     <div className="flex items-center justify-between mb-6">
-                        <h2 className="text-lg font-semibold text-gray-900">Task Distribution</h2>
+                        <h2 className="text-lg font-semibold text-gray-900">
+                            {taskScope === 'all' ? 'All Task Distribution' :
+                                taskScope === 'department' ? 'Department Task Distribution' :
+                                    'My Task Distribution'}
+                        </h2>
                     </div>
 
                     {taskDistributionData.length > 0 ? (
@@ -166,7 +216,7 @@ export default function Dashboard() {
                             <DonutChart
                                 data={taskDistributionData}
                                 centerValue={dashboardData.tasks.total.toString()}
-                                centerLabel="Total Tasks"
+                                centerLabel={taskScopeLabel}
                             />
 
                             {/* Status Breakdown */}
@@ -207,7 +257,9 @@ export default function Dashboard() {
                         <div className="text-center py-12">
                             <CheckSquare className="w-16 h-16 text-gray-300 mx-auto mb-4" />
                             <p className="text-gray-500">No tasks yet</p>
-                            <p className="text-sm text-gray-400 mt-1">Create your first task to see analytics</p>
+                            <p className="text-sm text-gray-400 mt-1">
+                                {canCreateTasks ? 'Create your first task to see analytics' : 'No tasks assigned to you'}
+                            </p>
                         </div>
                     )}
                 </div>
@@ -280,39 +332,63 @@ export default function Dashboard() {
                 </div>
             </div>
 
-            {/* Quick Actions */}
+            {/* Quick Actions - Permission-based */}
             <div className="bg-white rounded-card p-6 shadow-card">
                 <h2 className="text-lg font-semibold text-gray-900 mb-4">Quick Actions</h2>
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    {/* Create New Task - Only if user has createTasks permission */}
+                    {canCreateTasks && (
+                        <Card
+                            hoverable
+                            onClick={() => navigate('/create-task')}
+                            className="border-2 border-dashed border-gray-200 rounded-lg hover:border-primary cursor-pointer transition-all"
+                        >
+                            <div className="text-2xl mb-2">📝</div>
+                            <div className="font-medium text-gray-900">Create New Task</div>
+                            <div className="text-sm text-gray-500 mt-1">Assign tasks to team members</div>
+                        </Card>
+                    )}
+
+                    {/* View All Tasks - Only if user can view all or department tasks */}
+                    {(canViewAllTasks || canViewDeptTasks) && (
+                        <Card
+                            hoverable
+                            onClick={() => navigate('/all-tasks')}
+                            className="border-2 border-dashed border-gray-200 rounded-lg hover:border-primary cursor-pointer transition-all"
+                        >
+                            <div className="text-2xl mb-2">📋</div>
+                            <div className="font-medium text-gray-900">
+                                {canViewAllTasks ? 'View All Tasks' : 'View Department Tasks'}
+                            </div>
+                            <div className="text-sm text-gray-500 mt-1">
+                                {canViewAllTasks ? 'See all tasks' : 'See your department tasks'}
+                            </div>
+                        </Card>
+                    )}
+
+                    {/* My Tasks - Always show */}
                     <Card
                         hoverable
-                        onClick={() => navigate('/create-task')}
+                        onClick={() => navigate('/my-tasks')}
                         className="border-2 border-dashed border-gray-200 rounded-lg hover:border-primary cursor-pointer transition-all"
                     >
-                        <div className="text-2xl mb-2">📝</div>
-                        <div className="font-medium text-gray-900">Create New Task</div>
-                        <div className="text-sm text-gray-500 mt-1">Assign tasks to team members</div>
+                        <div className="text-2xl mb-2">👤</div>
+                        <div className="font-medium text-gray-900">My Tasks</div>
+                        <div className="text-sm text-gray-500 mt-1">View tasks assigned to you</div>
                     </Card>
 
-                    <Card
-                        hoverable
-                        onClick={() => navigate('/all-tasks')}
-                        className="border-2 border-dashed border-gray-200 rounded-lg hover:border-primary cursor-pointer transition-all"
-                    >
-                        <div className="text-2xl mb-2">📋</div>
-                        <div className="font-medium text-gray-900">View All Tasks</div>
-                        <div className="text-sm text-gray-500 mt-1">See all your tasks</div>
-                    </Card>
-
-                    <Card
-                        hoverable
-                        onClick={() => navigate('/approvals')}
-                        className="border-2 border-dashed border-gray-200 rounded-lg hover:border-primary cursor-pointer transition-all"
-                    >
-                        <div className="text-2xl mb-2">✅</div>
-                        <div className="font-medium text-gray-900">Pending Approvals</div>
-                        <div className="text-sm text-gray-500 mt-1">Review completed tasks</div>
-                    </Card>
+                    {/* Pending Approvals - Only if user has approveTasks permission */}
+                    {canApproveTasks && (
+                        <Card
+                            hoverable
+                            onClick={() => navigate('/approvals')}
+                            className="border-2 border-dashed border-gray-200 rounded-lg hover:border-primary cursor-pointer transition-all"
+                        >
+                            <div className="text-2xl mb-2">✅</div>
+                            <div className="font-medium text-gray-900">Pending Approvals</div>
+                            <div className="text-sm text-gray-500 mt-1">Review completed tasks</div>
+                        </Card>
+                    )}
                 </div>
             </div>
         </div>

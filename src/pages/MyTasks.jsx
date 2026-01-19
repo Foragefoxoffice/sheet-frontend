@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
-import { CheckCircle2, Clock, Search as SearchIcon, Filter, X } from 'lucide-react';
-import { Select, Input, Button, Modal as AntModal } from 'antd';
+import { CheckCircle2, Clock, Search as SearchIcon, Filter, X, Plus } from 'lucide-react';
+import { Select, Input, Button, Modal as AntModal, Form, DatePicker, TimePicker, Checkbox, Pagination } from 'antd';
+import dayjs from 'dayjs';
 import { useAuth } from '../hooks/useAuth';
 import TaskCard from '../components/common/TaskCard';
 import Modal from '../components/common/Modal'; // Keeping custom modal for consistency in layout, or switch? Sticking to custom for now as per plan, but replacing inner content.
@@ -25,6 +26,22 @@ export default function MyTasks() {
     const [departments, setDepartments] = useState([]);
     const [users, setUsers] = useState([]);
     const [newComment, setNewComment] = useState('');
+    const [currentPage, setCurrentPage] = useState(1);
+    const [pageSize, setPageSize] = useState(12);
+
+    // CRUD State
+    const [showCreateModal, setShowCreateModal] = useState(false);
+    const [editingTask, setEditingTask] = useState(null);
+    const [createFormData, setCreateFormData] = useState({
+        task: '',
+        assignedToEmail: '',
+        priority: 'Medium',
+        targetDate: '',
+        targetTime: '',
+        notes: '',
+        isSelfTask: false,
+        taskGivenBy: '',
+    });
 
     useEffect(() => {
         fetchTasks();
@@ -99,6 +116,119 @@ export default function MyTasks() {
         setSelectedTask(task);
         setNewComment('');
         setShowDetailModal(true);
+    };
+
+    const handleDeleteTask = async (task) => {
+        if (!window.confirm(`Are you sure you want to delete task "${task.task}"? This action cannot be undone.`)) {
+            return;
+        }
+
+        try {
+            const response = await api.delete(`/tasks/${task._id}`);
+            if (response.data.success) {
+                showToast('Task deleted successfully', 'success');
+                fetchTasks();
+            }
+        } catch (error) {
+            console.error('Delete task error:', error);
+            showToast(error.response?.data?.error || 'Failed to delete task', 'error');
+        }
+    };
+
+    const handleEditTask = (task) => {
+        setEditingTask(task);
+        setCreateFormData({
+            task: task.task,
+            assignedToEmail: task.assignedToEmail,
+            priority: task.priority,
+            targetDate: task.dueDate ? dayjs(task.dueDate) : null,
+            targetTime: task.dueDate ? dayjs(task.dueDate) : null,
+            notes: task.notes || '',
+            isSelfTask: task.isSelfTask || false,
+            taskGivenBy: task.taskGivenBy || '',
+        });
+        setShowCreateModal(true);
+    };
+
+    const handleSubmitTask = async () => {
+        if (!createFormData.task.trim()) {
+            showToast('Task description is required', 'error');
+            return;
+        }
+
+        if (!createFormData.isSelfTask && !createFormData.assignedToEmail) {
+            showToast('Please select a user to assign the task', 'error');
+            return;
+        }
+
+        if (!createFormData.targetDate || !createFormData.targetTime) {
+            showToast('Please select target date and time', 'error');
+            return;
+        }
+
+        try {
+            const dateStr = dayjs.isDayjs(createFormData.targetDate)
+                ? createFormData.targetDate.format('YYYY-MM-DD')
+                : createFormData.targetDate;
+
+            const timeStr = dayjs.isDayjs(createFormData.targetTime)
+                ? createFormData.targetTime.format('HH:mm')
+                : createFormData.targetTime;
+
+            const dueDate = new Date(`${dateStr}T${timeStr}`);
+
+            if (dueDate < new Date()) {
+                showToast('Target date/time cannot be in the past', 'error');
+                return;
+            }
+
+            const now = new Date();
+            const diffMs = dueDate - now;
+            const diffHours = Math.ceil(diffMs / (1000 * 60 * 60));
+
+            const payload = {
+                task: createFormData.task,
+                assignedToEmail: createFormData.assignedToEmail,
+                priority: createFormData.priority,
+                notes: createFormData.notes,
+                isSelfTask: createFormData.isSelfTask,
+                taskGivenBy: createFormData.taskGivenBy,
+            };
+
+            let response;
+            if (editingTask) {
+                response = await api.put(`/tasks/${editingTask._id}`, {
+                    ...payload,
+                    dueDate: dueDate.toISOString()
+                });
+            } else {
+                response = await api.post('/tasks', {
+                    ...payload,
+                    durationType: 'hours',
+                    durationValue: diffHours,
+                });
+            }
+
+            if (response.data.success) {
+                showToast(editingTask ? 'Task updated successfully' : 'Task created successfully!', 'success');
+                setShowCreateModal(false);
+                setEditingTask(null);
+                setCreateFormData({
+                    task: '',
+                    assignedToEmail: '',
+                    priority: 'Medium',
+                    targetDate: '',
+                    targetTime: '',
+                    notes: '',
+                    isSelfTask: false,
+                    taskGivenBy: '',
+                });
+                fetchTasks();
+            }
+        } catch (error) {
+            console.error('Task save error:', error);
+            showToast(error.response?.data?.error || 'Failed to save task', 'error');
+        }
     };
 
     const handleAddComment = async () => {
@@ -201,6 +331,27 @@ export default function MyTasks() {
                     <h1 className="text-2xl font-bold text-gray-900 mb-2">My Works</h1>
                     <p className="text-gray-600">Tasks assigned to you</p>
                 </div>
+                <Button
+                    type="primary"
+                    onClick={() => {
+                        setEditingTask(null);
+                        setCreateFormData({
+                            task: '',
+                            assignedToEmail: '',
+                            priority: 'Medium',
+                            targetDate: '',
+                            targetTime: '',
+                            notes: '',
+                            isSelfTask: false,
+                            taskGivenBy: '',
+                        });
+                        setShowCreateModal(true);
+                    }}
+                    icon={<Plus className="w-4 h-4" />}
+                    size="large"
+                >
+                    Create Task
+                </Button>
             </div>
 
             {/* Floating Search Bar */}
@@ -313,6 +464,10 @@ export default function MyTasks() {
                     </div>
 
                     <div className="w-full md:w-auto">
+                        <Select value={priorityFilter} onChange={setPriorityFilter} className="w-full md:w-36" options={[{ value: 'all', label: 'All Priorities' }, { value: 'High', label: 'High Priority' }, { value: 'Medium', label: 'Medium Priority' }, { value: 'Low', label: 'Low Priority' }]} />
+                    </div>
+
+                    <div className="w-full md:w-auto">
                         <Select
                             value={roleFilter}
                             onChange={setRoleFilter}
@@ -383,17 +538,211 @@ export default function MyTasks() {
                         </p>
                     </div>
                 ) : (
-                    <div className="grid grid-cols-1 pt-5 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                        {sortedTasks.map(task => (
-                            <TaskCard
-                                key={task._id}
-                                task={task}
-                                onStatusChange={handleStatusChange}
-                                onView={handleViewTask}
-                            />
-                        ))}
-                    </div>
+                    <>
+                        <div className="grid grid-cols-1 pt-5 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                            {sortedTasks
+                                .slice((currentPage - 1) * pageSize, currentPage * pageSize)
+                                .map(task => {
+                                    // Helper to safely get string ID
+                                    const getId = (obj) => {
+                                        if (!obj) return '';
+                                        return typeof obj === 'object' ? obj._id?.toString() : obj.toString();
+                                    };
+                                    const userId = user._id?.toString();
+
+                                    const isCreator = getId(task.createdBy) === userId;
+
+                                    // User can edit if they have 'editAllTasks' OR if they are creator + have 'editOwnTasks'
+                                    const canEditDetails =
+                                        user.permissions.editAllTasks ||
+                                        (isCreator && user.permissions.editOwnTasks);
+
+                                    // User can delete if they have 'deleteAllTasks' OR if they are creator + have 'deleteOwnTasks'
+                                    const canDeleteTask =
+                                        user.permissions.deleteAllTasks ||
+                                        (isCreator && user.permissions.deleteOwnTasks);
+
+                                    return (
+                                        <TaskCard
+                                            key={task._id}
+                                            task={task}
+                                            onStatusChange={handleStatusChange}
+                                            onView={handleViewTask}
+                                            onEdit={canEditDetails ? handleEditTask : undefined}
+                                            onDelete={canDeleteTask ? handleDeleteTask : undefined}
+                                            showActions={true}
+                                        />
+                                    );
+                                })}
+                        </div>
+
+                        {/* Pagination */}
+                        {sortedTasks.length > 0 && (
+                            <div className="mt-8 flex justify-center">
+                                <Pagination
+                                    current={currentPage}
+                                    total={sortedTasks.length}
+                                    pageSize={pageSize}
+                                    onChange={(page) => {
+                                        setCurrentPage(page);
+                                        window.scrollTo({ top: 0, behavior: 'smooth' });
+                                    }}
+                                    onShowSizeChange={(current, size) => {
+                                        setPageSize(size);
+                                        setCurrentPage(1);
+                                    }}
+                                    showSizeChanger
+                                    showTotal={(total, range) => `${range[0]}-${range[1]} of ${total} tasks`}
+                                    pageSizeOptions={['6', '12', '24', '48']}
+                                />
+                            </div>
+                        )}
+                    </>
                 )}
+
+                {/* Create/Edit Task Modal */}
+                <Modal
+                    isOpen={showCreateModal}
+                    onClose={() => {
+                        setShowCreateModal(false);
+                        setEditingTask(null);
+                    }}
+                    title={editingTask ? 'Update Task' : 'Create Task'}
+                >
+                    <Form
+                        layout="vertical"
+                        onFinish={handleSubmitTask}
+                        initialValues={{ priority: 'Medium' }}
+                        className="mt-4"
+                    >
+                        <Form.Item
+                            label={<span className="font-medium text-gray-700">Task Description <span className="text-danger">*</span></span>}
+                            required
+                        >
+                            <Input.TextArea
+                                value={createFormData.task}
+                                onChange={(e) => setCreateFormData({ ...createFormData, task: e.target.value })}
+                                placeholder="Enter task description"
+                                rows={3}
+                                size="large"
+                            />
+                        </Form.Item>
+
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <Form.Item
+                                label={<span className="font-medium text-gray-700">Assign To <span className="text-danger">*</span></span>}
+                                required
+                            >
+                                <Select
+                                    value={createFormData.assignedToEmail}
+                                    onChange={(value) => setCreateFormData({ ...createFormData, assignedToEmail: value })}
+                                    placeholder="Select user"
+                                    disabled={createFormData.isSelfTask}
+                                    showSearch
+                                    optionFilterProp="label"
+                                    size="large"
+                                    options={users.map(u => ({
+                                        value: u.email,
+                                        label: `${u.name} (${u.role?.displayName || u.role})`
+                                    }))}
+                                />
+                            </Form.Item>
+
+                            <Form.Item
+                                label={<span className="font-medium text-gray-700">Priority <span className="text-danger">*</span></span>}
+                            >
+                                <Select
+                                    value={createFormData.priority}
+                                    onChange={(value) => setCreateFormData({ ...createFormData, priority: value })}
+                                    size="large"
+                                >
+                                    <Select.Option value="Low">Low</Select.Option>
+                                    <Select.Option value="Medium">Medium</Select.Option>
+                                    <Select.Option value="High">High</Select.Option>
+                                </Select>
+                            </Form.Item>
+
+                            <Form.Item
+                                label={<span className="font-medium text-gray-700">Target Date <span className="text-danger">*</span></span>}
+                                required
+                            >
+                                <DatePicker
+                                    value={createFormData.targetDate ? dayjs(createFormData.targetDate) : null}
+                                    onChange={(date, dateString) => setCreateFormData({ ...createFormData, targetDate: dateString })}
+                                    className="w-full"
+                                    size="large"
+                                    disabledDate={(current) => current && current < dayjs().startOf('day')}
+                                />
+                            </Form.Item>
+
+                            <Form.Item
+                                label={<span className="font-medium text-gray-700">Target Time <span className="text-danger">*</span></span>}
+                                required
+                            >
+                                <TimePicker
+                                    value={createFormData.targetTime ? dayjs(`2000-01-01 ${createFormData.targetTime}`) : null}
+                                    onChange={(time, timeString) => setCreateFormData({ ...createFormData, targetTime: timeString })}
+                                    className="w-full"
+                                    size="large"
+                                    format="HH:mm"
+                                />
+                            </Form.Item>
+                        </div>
+
+                        <Form.Item label={<span className="font-medium text-gray-700">Notes (Optional)</span>}>
+                            <Input.TextArea
+                                value={createFormData.notes}
+                                onChange={(e) => setCreateFormData({ ...createFormData, notes: e.target.value })}
+                                rows={3}
+                                placeholder="Add any additional notes..."
+                                size="large"
+                            />
+                        </Form.Item>
+
+                        <div className="mb-6">
+                            <Checkbox
+                                checked={createFormData.isSelfTask}
+                                onChange={(e) => {
+                                    const checked = e.target.checked;
+                                    if (checked) {
+                                        setCreateFormData(prev => ({
+                                            ...prev,
+                                            isSelfTask: true,
+                                            assignedToEmail: user.email
+                                        }));
+                                    } else {
+                                        setCreateFormData(prev => ({
+                                            ...prev,
+                                            isSelfTask: false,
+                                            assignedToEmail: ''
+                                        }));
+                                    }
+                                }}
+                            >
+                                This is a self-assigned task
+                            </Checkbox>
+                        </div>
+
+                        <div className="flex gap-3 pt-2">
+                            <Button
+                                size="large"
+                                onClick={() => setShowCreateModal(false)}
+                                className="flex-1"
+                            >
+                                Cancel
+                            </Button>
+                            <Button
+                                type="primary"
+                                htmlType="submit"
+                                size="large"
+                                className="flex-1 bg-primary hover:bg-primary-600"
+                                icon={<Plus className="w-4 h-4" />}
+                            >
+                                {editingTask ? 'Update Task' : 'Create Task'}
+                            </Button>
+                        </div>
+                    </Form>
+                </Modal>
 
                 {/* Task Detail Modal */}
                 {selectedTask && (

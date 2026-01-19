@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Plus } from 'lucide-react';
+import { Plus, ListTodo } from 'lucide-react';
 import { Form, Input, Select, DatePicker, TimePicker, Button, Checkbox, Card } from 'antd';
 import { useAuth } from '../hooks/useAuth';
 import { useNavigate } from 'react-router-dom';
@@ -14,6 +14,7 @@ export default function CreateTask() {
     const [users, setUsers] = useState([]);
     const [form] = Form.useForm();
     const [isSelfTask, setIsSelfTask] = useState(false);
+    const [taskGivenBy, setTaskGivenBy] = useState('');
 
     useEffect(() => {
         fetchUsers();
@@ -21,8 +22,19 @@ export default function CreateTask() {
 
     const fetchUsers = async () => {
         try {
-            const response = await api.get('/users/for-tasks');
-            setUsers(response.data.users || []);
+            const [usersResponse, rolesResponse] = await Promise.all([
+                api.get('/users/for-tasks'),
+                api.get('/users/available-roles')
+            ]);
+
+            const allUsers = usersResponse.data.users || [];
+            const managedRoles = rolesResponse.data.roles || [];
+            const managedRoleIds = managedRoles.map(r => r._id);
+
+            // Filter removed as requested: allow selecting all users
+            const assignableUsers = allUsers;
+
+            setUsers(assignableUsers);
         } catch (error) {
             console.error('Error fetching users:', error);
             showToast('Failed to load users', 'error');
@@ -30,11 +42,13 @@ export default function CreateTask() {
     };
 
     const handleSelfTaskChange = (e) => {
-        setIsSelfTask(e.target.checked);
-        if (e.target.checked) {
+        const checked = e.target.checked;
+        setIsSelfTask(checked);
+        if (checked) {
             form.setFieldsValue({ assignedToEmail: user.email });
         } else {
-            form.setFieldsValue({ assignedToEmail: '' });
+            form.setFieldsValue({ assignedToEmail: undefined, taskGivenBy: undefined });
+            setTaskGivenBy('');
         }
     };
 
@@ -68,6 +82,7 @@ export default function CreateTask() {
                 durationValue: diffHours,
                 notes: values.notes,
                 isSelfTask: isSelfTask,
+                taskGivenBy: values.taskGivenBy,
             };
 
             const response = await api.post('/tasks', requestData);
@@ -78,6 +93,7 @@ export default function CreateTask() {
                 // Reset form
                 form.resetFields();
                 setIsSelfTask(false);
+                setTaskGivenBy('');
 
                 // Navigate to assigned tasks after 1 second
                 setTimeout(() => {
@@ -85,145 +101,176 @@ export default function CreateTask() {
                 }, 1000);
             }
         } catch (error) {
-            const errorMessage = error.response?.data?.error || 'Failed to create task';
-            showToast(errorMessage, 'error');
+            console.error('Task save error:', error);
+            showToast(error.response?.data?.error || 'Failed to save task', 'error');
         } finally {
             setLoading(false);
         }
     };
 
     return (
-        <div className="p-6">
-            {/* Header */}
-            <div className="mb-6">
-                <h1 className="text-2xl font-bold text-gray-900 mb-2">Create New Task</h1>
-                <p className="text-gray-600">Assign a task to a team member</p>
-            </div>
+        <div className="md:p-6 max-w-4xl mx-auto">
+            <h1 className="text-2xl font-bold text-gray-900 mb-6">Create New Task</h1>
 
-            {/* Form */}
-            <Card className="max-w-3xl shadow-card border-none">
+            <Card className="shadow-sm">
                 <Form
                     form={form}
                     layout="vertical"
                     onFinish={handleSubmit}
+                    className="mt-4"
                     initialValues={{
                         priority: 'Medium',
                         isSelfTask: false
                     }}
-                    size="large"
                 >
-                    {/* Task Description */}
                     <Form.Item
-                        label={<span className="font-medium text-gray-700">Task Description</span>}
                         name="task"
-                        rules={[{ required: true, message: 'Please describe the task' }]}
+                        label={<span className="font-medium text-gray-700">Task Description <span className="text-red-500">*</span></span>}
+                        rules={[{ required: true, message: 'Please enter a task description' }]}
                     >
                         <Input.TextArea
                             rows={4}
                             placeholder="Describe the task in detail..."
-                            className="rounded-lg"
+                            size="large"
                         />
                     </Form.Item>
 
-                    {/* Self Task Checkbox */}
-                    <Form.Item name="isSelfTask" valuePropName="checked">
-                        <Checkbox onChange={handleSelfTaskChange}>
-                            This is a self-assigned task
-                        </Checkbox>
-                    </Form.Item>
-
-                    {/* Assign To */}
+                    {/* Show Assign To only if not self-task */}
                     {!isSelfTask && (
                         <Form.Item
-                            label={<span className="font-medium text-gray-700">Assign To</span>}
                             name="assignedToEmail"
+                            label={<span className="font-medium text-gray-700">Assign To <span className="text-red-500">*</span></span>}
                             rules={[{ required: true, message: 'Please select a user' }]}
                         >
                             <Select
                                 placeholder="Select a user"
+                                size="large"
                                 showSearch
                                 optionFilterProp="children"
                             >
                                 {users.map(u => (
                                     <Select.Option key={u._id} value={u.email}>
-                                        {u.name} ({u.role?.displayName || u.role}) - {u.email}
+                                        {u.name} ({u.designation || u.role?.displayName})
                                     </Select.Option>
                                 ))}
                             </Select>
                         </Form.Item>
                     )}
 
-                    {/* Hidden field for assignedToEmail when self task is checked */}
-                    <Form.Item name="assignedToEmail" hidden>
-                        <Input />
-                    </Form.Item>
+                    {/* Show creator info for self-tasks */}
+                    {isSelfTask && (
+                        <div className="space-y-4 mb-6">
+                            <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                                <div className="flex items-center gap-2 text-blue-700">
+                                    <ListTodo className="w-5 h-5" />
+                                    <span className="font-medium">Self-Assigned Task</span>
+                                </div>
+                                <p className="text-sm text-blue-600 mt-2">
+                                    Assigned to: <span className="font-semibold">{user.name}</span> ({user.designation || user.role?.displayName})
+                                </p>
+                                {/* Hidden field to hold the value for form submission */}
+                                <Form.Item name="assignedToEmail" hidden>
+                                    <Input />
+                                </Form.Item>
+                            </div>
 
-                    {/* Priority, Date, and Time Row */}
+                            {/* Task Given By field */}
+                            <Form.Item
+                                name="taskGivenBy"
+                                label={<span className="font-medium text-gray-700">Task Given By (Optional)</span>}
+                                help="Select the person who originally requested or assigned this task to you"
+                            >
+                                <Select
+                                    placeholder="Select who gave you this task"
+                                    size="large"
+                                    showSearch
+                                    optionFilterProp="children"
+                                    allowClear
+                                    onChange={(val) => setTaskGivenBy(val)}
+                                >
+                                    {users
+                                        .filter(u => u.email !== user.email)
+                                        .map(u => (
+                                            <Select.Option key={u._id} value={u.email}>
+                                                {u.name} ({u.designation || u.role?.displayName})
+                                            </Select.Option>
+                                        ))}
+                                </Select>
+                            </Form.Item>
+                        </div>
+                    )}
+
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                        {/* Priority */}
                         <Form.Item
-                            label={<span className="font-medium text-gray-700">Priority</span>}
                             name="priority"
+                            label={<span className="font-medium text-gray-700">Priority</span>}
                         >
-                            <Select>
+                            <Select size="large">
                                 <Select.Option value="Low">Low</Select.Option>
                                 <Select.Option value="Medium">Medium</Select.Option>
                                 <Select.Option value="High">High</Select.Option>
                             </Select>
                         </Form.Item>
 
-                        {/* Target Date */}
                         <Form.Item
-                            label={<span className="font-medium text-gray-700">Target Date</span>}
                             name="targetDate"
-                            rules={[{ required: true, message: 'Please select date' }]}
+                            label={<span className="font-medium text-gray-700">Target Date <span className="text-red-500">*</span></span>}
+                            rules={[{ required: true, message: 'Please select a date' }]}
                         >
                             <DatePicker
                                 className="w-full"
+                                size="large"
                                 disabledDate={(current) => current && current < dayjs().startOf('day')}
                             />
                         </Form.Item>
 
-                        {/* Target Time */}
                         <Form.Item
-                            label={<span className="font-medium text-gray-700">Target Time</span>}
                             name="targetTime"
-                            rules={[{ required: true, message: 'Please select time' }]}
+                            label={<span className="font-medium text-gray-700">Target Time <span className="text-red-500">*</span></span>}
+                            rules={[{ required: true, message: 'Please select a time' }]}
                         >
                             <TimePicker
                                 className="w-full"
+                                size="large"
                                 format="HH:mm"
-                                minuteStep={15}
                             />
                         </Form.Item>
                     </div>
 
-                    {/* Notes */}
                     <Form.Item
-                        label={<span className="font-medium text-gray-700">Notes (Optional)</span>}
                         name="notes"
+                        label={<span className="font-medium text-gray-700">Notes (Optional)</span>}
                     >
                         <Input.TextArea
                             rows={3}
-                            placeholder="Add any additional notes or instructions..."
+                            placeholder="Add any additional notes..."
+                            size="large"
                         />
                     </Form.Item>
 
-                    {/* Buttons */}
-                    <div className="flex gap-3 pt-4">
+                    <div className="mb-6">
+                        <Checkbox
+                            checked={isSelfTask}
+                            onChange={handleSelfTaskChange}
+                        >
+                            This is a self-assigned task
+                        </Checkbox>
+                    </div>
+
+                    <div className="flex gap-3 pt-2">
                         <Button
                             size="large"
-                            className="flex-1"
                             onClick={() => navigate(-1)}
+                            className="flex-1"
                         >
                             Cancel
                         </Button>
                         <Button
                             type="primary"
                             htmlType="submit"
-                            loading={loading}
                             size="large"
-                            className="flex-1 bg-black text-white hover:bg-gray-800 border-black"
+                            loading={loading}
+                            className="flex-1 bg-primary hover:bg-primary-600"
                             icon={<Plus className="w-4 h-4" />}
                         >
                             Create Task

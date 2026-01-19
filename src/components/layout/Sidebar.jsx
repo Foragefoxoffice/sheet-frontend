@@ -42,8 +42,26 @@ export default function Sidebar() {
             icon: LayoutDashboard,
             label: 'Dashboard',
             permission: null,
-            notForSuperAdmin: true, // Hide from super admin
         },
+        {
+            path: '/all-tasks',
+            icon: CheckSquare,
+            label: 'All Tasks',
+        },
+     
+        {
+            path: '/approvals',
+            icon: ClipboardCheck,
+            label: 'Approvals',
+            permission: 'viewApprovals',
+        },
+        {
+            path: '/reports',
+            icon: BarChart3,
+            label: 'Reports',
+            permission: 'viewReports',
+        },
+
         {
             path: '/users',
             icon: Users,
@@ -63,59 +81,19 @@ export default function Sidebar() {
             path: '/roles',
             icon: Shield,
             label: 'Roles',
-            permission: 'superAdminOnly',
+            permission: ['viewRoles', 'createRoles', 'editRoles', 'deleteRoles'],
             superAdminAccess: true, // Show to super admin
         },
-        {
-            path: '/all-tasks',
-            icon: CheckSquare,
-            label: 'All Tasks',
-            permission: null,
-            notForSuperAdmin: true, // Hide from super admin
-        },
-        {
-            path: '/tasks',
-            icon: ClipboardCheck,
-            label: 'Assigned to Me',
-            permission: null,
-            notForSuperAdmin: true, // Hide from super admin
-        },
-        {
-            path: '/assigned-tasks',
-            icon: CheckSquare,
-            label: 'I Assigned',
-            permission: null,
-            notForSuperAdmin: true, // Hide from super admin
-        },
-        {
-            path: '/self-tasks',
-            icon: Users,
-            label: 'Self Tasks',
-            permission: null,
-            notForSuperAdmin: true, // Hide from super admin
-        },
-        {
-            path: '/approvals',
-            icon: ClipboardCheck,
-            label: 'Approvals',
-            permission: null,
-            notForSuperAdmin: true, // Hide from super admin
-        },
-        {
-            path: '/reports',
-            icon: BarChart3,
-            label: 'Reports',
-            permission: 'viewReports',
-            notForSuperAdmin: true, // Hide from super admin
-        },
+
+
     ];
 
     const filteredNavItems = navItems.filter((item) => {
         // ✅ SUPER ADMIN LOGIC
         if (isSuperAdmin) {
-            // Show ONLY items explicitly allowed for super admin
-            console.log(`Checking item ${item.label}: superAdminAccess=${item.superAdminAccess}`);
-            return item.superAdminAccess === true;
+            // Super Admin can see all items
+            console.log(`Super Admin - showing item: ${item.label}`);
+            return true;
         }
 
         // ✅ NORMAL USERS LOGIC
@@ -135,6 +113,12 @@ export default function Sidebar() {
         if (!item.permission) return true;
 
         // Permission-based check
+        // Handle array of permissions (OR logic)
+        if (Array.isArray(item.permission)) {
+            return item.permission.some(perm => user?.permissions?.[perm] === true);
+        }
+
+        // Single permission string
         return user?.permissions?.[item.permission] === true;
     });
 

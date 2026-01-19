@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
-import { Download, Calendar, Users, CheckSquare, TrendingUp, FileText } from 'lucide-react';
+import { Download, Calendar, Users, CheckSquare, TrendingUp, FileText, BarChart3, PieChart } from 'lucide-react';
 import { DatePicker, Button, Table, Card } from 'antd';
+import { PieChart as RechartsPie, Pie, Cell, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 import dayjs from 'dayjs';
 import { useAuth } from '../hooks/useAuth';
 import api from '../utils/api';
@@ -37,7 +38,7 @@ export default function Reports() {
 
             const [tasksRes, usersRes] = await Promise.all([
                 api.get('/tasks/assigned'),
-                api.get('/users/for-tasks'), // Use for-tasks endpoint
+                api.get('/users/for-tasks'),
             ]);
 
             const tasks = tasksRes.data.tasks || [];
@@ -97,14 +98,11 @@ export default function Reports() {
         const headers = Object.keys(data[0]);
         const csvRows = [];
 
-        // Add headers
         csvRows.push(headers.join(','));
 
-        // Add data rows
         for (const row of data) {
             const values = headers.map(header => {
                 const value = row[header];
-                // Escape commas and quotes
                 const escaped = ('' + value).replace(/"/g, '""');
                 return `"${escaped}"`;
             });
@@ -136,6 +134,7 @@ export default function Reports() {
             'Email': u.email,
             'WhatsApp': u.whatsapp,
             'Role': u.role?.displayName || u.role,
+            'Designation': u.designation || 'N/A',
             'Department': u.department?.name || 'N/A',
             'Created At': formatDate(u.createdAt),
         }));
@@ -143,21 +142,13 @@ export default function Reports() {
         downloadCSV(usersData, `users-report-${dayjs().format('YYYY-MM-DD')}.csv`);
     };
 
-    const downloadStatisticsReport = () => {
-        const statsData = [{
-            'Total Tasks': reportData.statistics.totalTasks,
-            'Completed': reportData.statistics.completedTasks,
-            'In Progress': reportData.statistics.inProgressTasks,
-            'Pending': reportData.statistics.pendingTasks,
-            'Overdue': reportData.statistics.overdueTasks,
-            'Completion Rate': reportData.statistics.totalTasks > 0
-                ? `${((reportData.statistics.completedTasks / reportData.statistics.totalTasks) * 100).toFixed(1)}%`
-                : '0%',
-            'Date Range': `${dateRange[0].format('YYYY-MM-DD')} to ${dateRange[1].format('YYYY-MM-DD')}`,
-        }];
-
-        downloadCSV(statsData, `statistics-report-${dayjs().format('YYYY-MM-DD')}.csv`);
-    };
+    // Prepare chart data for statistics
+    const statisticsChartData = [
+        { name: 'Completed', value: reportData.statistics.completedTasks, color: '#10b981' },
+        { name: 'In Progress', value: reportData.statistics.inProgressTasks, color: '#3b82f6' },
+        { name: 'Pending', value: reportData.statistics.pendingTasks, color: '#f59e0b' },
+        { name: 'Overdue', value: reportData.statistics.overdueTasks, color: '#ef4444' },
+    ].filter(item => item.value > 0);
 
     // User performance data
     const userPerformance = reportData.users.map(u => {
@@ -174,22 +165,12 @@ export default function Reports() {
             completedTasks: completed,
             completionRate: total > 0 ? Number(((completed / total) * 100).toFixed(1)) : 0,
         };
-    }).filter(u => u.totalTasks > 0).sort((a, b) => b.completedTasks - a.completedTasks);
+    }).filter(u => u.totalTasks > 0).sort((a, b) => b.completionRate - a.completionRate);
 
-    const downloadUserPerformance = () => {
-        const performanceData = userPerformance.map(u => ({
-            'Name': u.name,
-            'Email': u.email,
-            'Role': u.role,
-            'Total Tasks': u.totalTasks,
-            'Completed Tasks': u.completedTasks,
-            'Completion Rate': `${u.completionRate}%`,
-        }));
+    // Top 10 performers for chart
+    const topPerformers = userPerformance.slice(0, 10);
 
-        downloadCSV(performanceData, `user-performance-${dateRange[0].format('YYYY-MM-DD')}-to-${dateRange[1].format('YYYY-MM-DD')}.csv`);
-    };
-
-    const columns = [
+    const performanceColumns = [
         {
             title: 'Name',
             dataIndex: 'name',
@@ -253,12 +234,12 @@ export default function Reports() {
     }
 
     return (
-        <div className="p-6 space-y-6">
+        <div className="p-0 md:p-6 space-y-6">
             {/* Header */}
             <div className="flex items-center justify-between">
                 <div>
                     <h1 className="text-2xl font-bold text-gray-900">Reports & Analytics</h1>
-                    <p className="text-gray-600 mt-1">View and download comprehensive reports</p>
+                    <p className="text-gray-600 mt-1">View insights and download comprehensive reports</p>
                 </div>
             </div>
 
@@ -344,10 +325,10 @@ export default function Reports() {
             {/* Download Reports Section */}
             <div className="bg-white rounded-card shadow-card p-6">
                 <h2 className="text-lg font-semibold text-gray-900 mb-4">Download Reports</h2>
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <Button
                         onClick={downloadTasksReport}
-                        style={{height: '50px'}}
+                        style={{ height: '60px' }}
                         className="h-auto py-4 flex items-center justify-start gap-3"
                         block
                     >
@@ -359,8 +340,8 @@ export default function Reports() {
                     </Button>
 
                     <Button
-                        onClick={downloadUsersReport}   
-                        style={{height: '50px'}}
+                        onClick={downloadUsersReport}
+                        style={{ height: '60px' }}
                         className="h-auto py-4 flex items-center justify-start gap-3"
                         block
                     >
@@ -370,45 +351,95 @@ export default function Reports() {
                             <div className="text-sm text-gray-500">{reportData.users.length} users</div>
                         </div>
                     </Button>
-
-                    <Button
-                        onClick={downloadStatisticsReport}
-                         style={{height: '50px'}}
-                        className="h-auto py-4 flex items-center justify-start gap-3"
-                        block
-                    >
-                        <Download className="w-5 h-5 text-primary" />
-                        <div className="text-left">
-                            <div className="font-medium text-gray-900">Statistics</div>
-                            <div className="text-sm text-gray-500">Summary data</div>
-                        </div>
-                    </Button>
-
-                    <Button
-                        onClick={downloadUserPerformance}
-                         style={{height: '50px'}}
-                        className="h-auto py-4 flex items-center justify-start gap-3"
-                        block
-                    >
-                        <Download className="w-5 h-5 text-primary" />
-                        <div className="text-left">
-                            <div className="font-medium text-gray-900">Performance</div>
-                            <div className="text-sm text-gray-500">User metrics</div>
-                        </div>
-                    </Button>
                 </div>
             </div>
 
-            {/* User Performance Table */}
+            {/* Statistics Chart */}
+            {statisticsChartData.length > 0 && (
+                <div className="bg-white rounded-card shadow-card p-6">
+                    <div className="flex items-center gap-2 mb-6">
+                        <PieChart className="w-5 h-5 text-primary" />
+                        <h2 className="text-lg font-semibold text-gray-900">Task Distribution</h2>
+                    </div>
+                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                        {/* Pie Chart */}
+                        <div>
+                            <ResponsiveContainer width="100%" height={300}>
+                                <RechartsPie>
+                                    <Pie
+                                        data={statisticsChartData}
+                                        cx="50%"
+                                        cy="50%"
+                                        labelLine={false}
+                                        label={({ name, percent }) => `${name}: ${(percent * 100).toFixed(0)}%`}
+                                        outerRadius={100}
+                                        fill="#8884d8"
+                                        dataKey="value"
+                                    >
+                                        {statisticsChartData.map((entry, index) => (
+                                            <Cell key={`cell-${index}`} fill={entry.color} />
+                                        ))}
+                                    </Pie>
+                                    <Tooltip />
+                                </RechartsPie>
+                            </ResponsiveContainer>
+                        </div>
+
+                        {/* Bar Chart */}
+                        <div>
+                            <ResponsiveContainer width="100%" height={300}>
+                                <BarChart data={statisticsChartData}>
+                                    <CartesianGrid strokeDasharray="3 3" />
+                                    <XAxis dataKey="name" />
+                                    <YAxis />
+                                    <Tooltip />
+                                    <Bar dataKey="value" fill="#3b82f6">
+                                        {statisticsChartData.map((entry, index) => (
+                                            <Cell key={`cell-${index}`} fill={entry.color} />
+                                        ))}
+                                    </Bar>
+                                </BarChart>
+                            </ResponsiveContainer>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* Performance Chart & Table */}
             {userPerformance.length > 0 && (
                 <div className="bg-white rounded-card shadow-card p-6">
-                    <h2 className="text-lg font-semibold text-gray-900 mb-4">User Performance</h2>
-                    <Table
-                        columns={columns}
-                        dataSource={userPerformance}
-                        pagination={false}
-                        rowKey="key"
-                    />
+                    <div className="flex items-center gap-2 mb-6">
+                        <BarChart3 className="w-5 h-5 text-primary" />
+                        <h2 className="text-lg font-semibold text-gray-900">User Performance</h2>
+                    </div>
+
+                    {/* Performance Bar Chart */}
+                    {topPerformers.length > 0 && (
+                        <div className="mb-6">
+                            <h3 className="text-sm font-medium text-gray-700 mb-4">Top Performers by Completion Rate</h3>
+                            <ResponsiveContainer width="100%" height={300}>
+                                <BarChart data={topPerformers} layout="horizontal">
+                                    <CartesianGrid strokeDasharray="3 3" />
+                                    <XAxis type="number" domain={[0, 100]} />
+                                    <YAxis dataKey="name" type="category" width={150} />
+                                    <Tooltip />
+                                    <Legend />
+                                    <Bar dataKey="completionRate" fill="#10b981" name="Completion Rate (%)" />
+                                </BarChart>
+                            </ResponsiveContainer>
+                        </div>
+                    )}
+
+                    {/* Performance Table */}
+                    <div>
+                        <h3 className="text-sm font-medium text-gray-700 mb-4">Detailed Performance Metrics</h3>
+                        <Table
+                            columns={performanceColumns}
+                            dataSource={userPerformance}
+                            pagination={{ pageSize: 10 }}
+                            rowKey="key"
+                        />
+                    </div>
                 </div>
             )}
         </div>

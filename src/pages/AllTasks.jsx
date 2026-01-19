@@ -1,5 +1,5 @@
-import { useState, useEffect } from 'react';
-import { Select, DatePicker, TimePicker, Input, Checkbox, Button, Form, ConfigProvider } from 'antd';
+import { useState, useEffect, useMemo } from 'react';
+import { Select, DatePicker, TimePicker, Input, Checkbox, Button, Form, ConfigProvider, Pagination, Modal as AntModal } from 'antd';
 import dayjs from 'dayjs';
 import { CheckCircle2, Clock, ListTodo, Plus, Search, ArrowUpDown, Filter, X } from 'lucide-react';
 import { useAuth } from '../hooks/useAuth';
@@ -11,6 +11,7 @@ import { TASK_STATUS } from '../utils/taskHelpers';
 
 export default function AllTasks() {
     const { user } = useAuth();
+    const [editingTask, setEditingTask] = useState(null);
     const [allTasks, setAllTasks] = useState([]);
     const [loading, setLoading] = useState(true);
     const [viewFilter, setViewFilter] = useState('assigned-to-me'); // assigned-to-me, i-assigned, self-tasks
@@ -20,6 +21,8 @@ export default function AllTasks() {
     const [showCreateModal, setShowCreateModal] = useState(false);
     const [users, setUsers] = useState([]);
     const [newComment, setNewComment] = useState('');
+    const [currentPage, setCurrentPage] = useState(1);
+    const [pageSize, setPageSize] = useState(12);
     const [createFormData, setCreateFormData] = useState({
         task: '',
         assignedToEmail: '',
@@ -30,6 +33,103 @@ export default function AllTasks() {
         isSelfTask: false,
         taskGivenBy: '', // Email of person who gave the task
     });
+
+    const handleDeleteTask = async (task) => {
+        if (!window.confirm(`Are you sure you want to delete task "${task.task}"? This action cannot be undone.`)) {
+            return;
+        }
+
+        try {
+            const response = await api.delete(`/tasks/${task._id}`);
+            if (response.data.success) {
+                showToast('Task deleted successfully', 'success');
+                fetchAllTasks(); // Refresh list
+            }
+        } catch (error) {
+            console.error('Delete task error:', error);
+            showToast(error.response?.data?.error || 'Failed to delete task', 'error');
+        }
+    };
+
+    const handleEditTask = (task) => {
+        setEditingTask(task);
+
+        // Populate form data for editing
+        setCreateFormData({
+            task: task.task,
+            assignedToEmail: task.assignedToEmail,
+            priority: task.priority,
+            targetDate: task.dueDate ? dayjs(task.dueDate) : null,
+            targetTime: task.dueDate ? dayjs(task.dueDate) : null,
+            notes: task.notes || '',
+            isSelfTask: task.isSelfTask || false,
+            taskGivenBy: task.taskGivenBy || '',
+        });
+
+        setShowCreateModal(true);
+    };
+
+    const handleCreateOrUpdateTask = async () => {
+        // ... validation logic ...
+
+        try {
+            // Combine date and time
+            let finalDueDate = createFormData.targetDate;
+            if (createFormData.targetTime) {
+                finalDueDate = createFormData.targetDate
+                    .hour(createFormData.targetTime.hour())
+                    .minute(createFormData.targetTime.minute());
+            }
+
+            const payload = {
+                task: createFormData.task,
+                assignedToEmail: createFormData.assignedToEmail,
+                priority: createFormData.priority,
+                // If using date/time pickers, convert to ISO
+                dueDate: finalDueDate ? finalDueDate.toISOString() : undefined,
+                // For regular create it uses duration, but for update/edit we usually set date directly?
+                // The backend create uses durationValue/durationType. Update uses dueDate.
+                // We need to adapt logic. If editing, use updateTask endpoint.
+                notes: createFormData.notes,
+                isSelfTask: createFormData.isSelfTask,
+                taskGivenBy: createFormData.taskGivenBy
+            };
+
+            // Handling the difference between create (duration) and edit (date)
+            // If editing, we hit PUT /tasks/:id
+            if (editingTask) {
+                const response = await api.put(`/tasks/${editingTask._id}`, payload);
+                if (response.data.success) {
+                    showToast('Task updated successfully', 'success');
+                    setShowCreateModal(false);
+                    setEditingTask(null);
+                    setCreateFormData({
+                        task: '',
+                        assignedToEmail: '',
+                        priority: 'Medium',
+                        targetDate: '',
+                        targetTime: '',
+                        notes: '',
+                        isSelfTask: false,
+                        taskGivenBy: '',
+                    });
+                    fetchAllTasks();
+                }
+            } else {
+                // Creation Logic (existing)
+                // We need to make sure we support setting date directly OR duration.
+                // The backend create() expects durationType and durationValue. 
+                // If the UI only provides Date, we might need to calculate duration or update backend create to accept dueDate.
+                // Let's assume for now we keep creation logic as is, but we need to check if createFormData matches creation requirements.
+                // For this specific task, I am focusing on EDIT/DELETE. 
+                // I will add a check: if editingTask is null, run existing create logic.
+
+                // ... existing create logic ...
+            }
+        } catch (error) {
+            // ... error handling ...
+        }
+    };
     const [searchQuery, setSearchQuery] = useState('');
     const [sortBy, setSortBy] = useState('date'); // date, priority, status
     const [departmentFilter, setDepartmentFilter] = useState('all');
@@ -72,16 +172,33 @@ export default function AllTasks() {
     };
 
     const handleStatusChange = async (taskId, newStatus) => {
-        try {
-            const response = await api.patch(`/tasks/${taskId}/status`, { status: newStatus });
+        // Show confirmation dialog
+        AntModal.confirm({
+            title: 'Confirm Status Change',
+            content: `Are you sure you want to change the task status to "${newStatus}"?`,
+            okText: 'Yes, Change Status',
+            cancelText: 'Cancel',
+            onOk: async () => {
+                try {
+                    const response = await api.patch(`/tasks/${taskId}/status`, {
+                        status: newStatus
+                    });
 
-            if (response.data.success) {
-                showToast(`Task status updated to ${newStatus}`, 'success');
-                fetchAllTasks();
-            }
-        } catch (error) {
-            showToast(error.response?.data?.error || 'Failed to update task status', 'error');
-        }
+                    if (response.data.success) {
+                        showToast('Task status updated', 'success');
+                        fetchAllTasks();
+
+                        // Update selected task if it's the one being changed
+                        if (selectedTask?._id === taskId) {
+                            setSelectedTask(response.data.task);
+                        }
+                    }
+                } catch (error) {
+                    console.error('Error updating task status:', error);
+                    showToast(error.response?.data?.error || 'Failed to update task status', 'error');
+                }
+            },
+        });
     };
 
     const handleCompleteTask = async (taskId) => {
@@ -168,7 +285,7 @@ export default function AllTasks() {
         }
     };
 
-    const handleCreateTask = async () => {
+    const handleSubmitTask = async () => {
         // e.preventDefault() is not needed directly with Ant Design Form onFinish
 
         if (!createFormData.task.trim()) {
@@ -188,7 +305,17 @@ export default function AllTasks() {
         }
 
         try {
-            const dueDate = new Date(`${createFormData.targetDate}T${createFormData.targetTime}`);
+            // Reconstruct Date object from components
+            // handle both string (from input) and dayjs object (from picker/edit preload)
+            const dateStr = dayjs.isDayjs(createFormData.targetDate)
+                ? createFormData.targetDate.format('YYYY-MM-DD')
+                : createFormData.targetDate;
+
+            const timeStr = dayjs.isDayjs(createFormData.targetTime)
+                ? createFormData.targetTime.format('HH:mm')
+                : createFormData.targetTime;
+
+            const dueDate = new Date(`${dateStr}T${timeStr}`);
 
             if (dueDate < new Date()) {
                 showToast('Target date/time cannot be in the past', 'error');
@@ -199,22 +326,35 @@ export default function AllTasks() {
             const diffMs = dueDate - now;
             const diffHours = Math.ceil(diffMs / (1000 * 60 * 60));
 
-            const requestData = {
+            const payload = {
                 task: createFormData.task,
                 assignedToEmail: createFormData.assignedToEmail,
                 priority: createFormData.priority,
-                durationType: 'hours',
-                durationValue: diffHours,
                 notes: createFormData.notes,
                 isSelfTask: createFormData.isSelfTask,
-                taskGivenBy: createFormData.taskGivenBy, // Include taskGivenBy
+                taskGivenBy: createFormData.taskGivenBy,
             };
 
-            const response = await api.post('/tasks', requestData);
+            let response;
+            if (editingTask) {
+                // Update specific payload
+                response = await api.put(`/tasks/${editingTask._id}`, {
+                    ...payload,
+                    dueDate: dueDate.toISOString() // Update endpoint expects strict date if changing
+                });
+            } else {
+                // Create specific payload (uses duration)
+                response = await api.post('/tasks', {
+                    ...payload,
+                    durationType: 'hours',
+                    durationValue: diffHours,
+                });
+            }
 
             if (response.data.success) {
-                showToast('Task created successfully!', 'success');
+                showToast(editingTask ? 'Task updated successfully' : 'Task created successfully!', 'success');
                 setShowCreateModal(false);
+                setEditingTask(null);
                 setCreateFormData({
                     task: '',
                     assignedToEmail: '',
@@ -223,12 +363,13 @@ export default function AllTasks() {
                     targetTime: '',
                     notes: '',
                     isSelfTask: false,
-                    taskGivenBy: '', // Reset taskGivenBy
+                    taskGivenBy: '',
                 });
                 fetchAllTasks();
             }
         } catch (error) {
-            showToast(error.response?.data?.error || 'Failed to create task', 'error');
+            console.error('Task save error:', error);
+            showToast(error.response?.data?.error || 'Failed to save task', 'error');
         }
     };
 
@@ -242,6 +383,12 @@ export default function AllTasks() {
             case 'self-tasks':
                 return allTasks.selfTasks || [];
             case 'all-tasks':
+                // For users with viewAllTasks permission, show all tasks
+                // Backend returns all tasks when user has viewAllTasks
+                return allTasks.allDeptTasks || [];
+            case 'department-tasks':
+                // For users with viewDepartmentTasks permission, show department tasks
+                // Backend returns department-filtered tasks when user has viewDepartmentTasks
                 return allTasks.allDeptTasks || [];
             default:
                 return [];
@@ -255,6 +402,7 @@ export default function AllTasks() {
         if (statusFilter === 'all') return true;
         if (statusFilter === 'pending') return task.status === TASK_STATUS.PENDING;
         if (statusFilter === 'in-progress') return task.status === TASK_STATUS.IN_PROGRESS;
+        if (statusFilter === 'waiting-for-approval') return task.status === TASK_STATUS.WAITING_FOR_APPROVAL;
         if (statusFilter === 'completed') return task.status === TASK_STATUS.COMPLETED;
         return true;
     });
@@ -299,26 +447,63 @@ export default function AllTasks() {
     });
 
     // Sort tasks
-    const sortedTasks = [...userFilteredTasks].sort((a, b) => {
+    const sortedTasks = useMemo(() => {
+        let sorted = [...userFilteredTasks];
         switch (sortBy) {
             case 'date':
-                return new Date(b.createdAt) - new Date(a.createdAt);
-            case 'priority': {
-                const priorityOrder = { 'High': 3, 'Medium': 2, 'Low': 1 };
-                return (priorityOrder[b.priority] || 0) - (priorityOrder[a.priority] || 0);
-            }
-            case 'status': {
+                sorted.sort((a, b) => new Date(a.dueDate) - new Date(b.dueDate));
+                break;
+            case 'newest':
+                sorted.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+                break;
+            case 'oldest':
+                sorted.sort((a, b) => new Date(a.createdAt) - new Date(b.createdAt));
+                break;
+            case 'priority':
+                const priorityOrder = { 'High': 1, 'Medium': 2, 'Low': 3 };
+                sorted.sort((a, b) => priorityOrder[a.priority] - priorityOrder[b.priority]);
+                break;
+            case 'status':
                 const statusOrder = { 'Pending': 1, 'In Progress': 2, 'Completed': 3 };
-                return (statusOrder[a.status] || 0) - (statusOrder[b.status] || 0);
-            }
+                sorted.sort((a, b) => statusOrder[a.status] - statusOrder[b.status]);
+                break;
             default:
-                return 0;
+                break;
         }
-    });
+        return sorted;
+    }, [userFilteredTasks, sortBy]);
 
-    // Get user role for tab visibility
-    const userRoleName = user?.role?.name || user?.role;
-    const isStaff = userRoleName === 'staff';
+    // Get user permissions for tab visibility
+    const canViewAllTasks = user?.permissions?.viewAllTasks;
+    const canViewDeptTasks = user?.permissions?.viewDepartmentTasks;
+    const showAllTasksTab = canViewAllTasks || canViewDeptTasks;
+
+    // Detailed granular permissions (default to true for backward compatibility if undefined)
+    const canViewAssignedToMe = user?.permissions?.viewAssignedToMeTasks !== false;
+    const canViewIAssigned = user?.permissions?.viewIAssignedTasks !== false;
+    const canViewSelfTasks = user?.permissions?.viewSelfTasks !== false;
+
+    // Determine initial view filter based on permissions
+    useEffect(() => {
+        // If current filter is not allowed, switch to first allowed filter
+        const isCurrentAllowed =
+            (viewFilter === 'assigned-to-me' && canViewAssignedToMe) ||
+            (viewFilter === 'i-assigned' && canViewIAssigned) ||
+            (viewFilter === 'self-tasks' && canViewSelfTasks) ||
+            (viewFilter === 'all-tasks' && canViewAllTasks) ||
+            (viewFilter === 'department-tasks' && canViewDeptTasks);
+
+        if (!isCurrentAllowed) {
+            if (canViewAssignedToMe) setViewFilter('assigned-to-me');
+            else if (canViewIAssigned) setViewFilter('i-assigned');
+            else if (canViewSelfTasks) setViewFilter('self-tasks');
+            else if (canViewAllTasks) setViewFilter('all-tasks');
+            else if (canViewDeptTasks) setViewFilter('department-tasks');
+        }
+    }, [user, viewFilter, canViewAssignedToMe, canViewIAssigned, canViewSelfTasks, canViewAllTasks, canViewDeptTasks]);
+
+    // Check create permission
+    const canCreateTask = user?.permissions?.createTasks !== false; // Default true if undefined
 
     const stats = {
         assignedToMe: allTasks.assignedToMe?.length || 0,
@@ -339,14 +524,16 @@ export default function AllTasks() {
                 <div className="flex items-center gap-3">
                     {/* Search Toggle Button */}
 
-                    <Button
-                        type="primary"
-                        onClick={() => setShowCreateModal(true)}
-                        className="bg-primary hover:bg-primary-600 flex items-center gap-2 h-auto py-2.5 px-6 w-full md:w-auto justify-center"
-                        icon={<Plus className="w-5 h-5" />}
-                    >
-                        Create Task
-                    </Button>
+                    {canCreateTask && (
+                        <Button
+                            type="primary"
+                            onClick={() => setShowCreateModal(true)}
+                            className="bg-primary hover:bg-primary-600 flex items-center gap-2 h-auto py-2.5 px-6 w-full md:w-auto justify-center"
+                            icon={<Plus className="w-5 h-5" />}
+                        >
+                            Create Task
+                        </Button>
+                    )}
                 </div>
             </div>
 
@@ -390,350 +577,500 @@ export default function AllTasks() {
                     <div className="text-sm text-gray-600 mb-1">Total Tasks</div>
                     <div className="text-2xl font-bold text-gray-900">{stats.total}</div>
                 </div>
-                <div className="bg-white rounded-card shadow-card p-3 md:p-4">
-                    <div className="text-sm text-gray-600 mb-1">Assigned to Me</div>
-                    <div className="text-2xl font-bold text-blue-600">{stats.assignedToMe}</div>
-                </div>
-                <div className="bg-white rounded-card shadow-card p-3 md:p-4">
-                    <div className="text-sm text-gray-600 mb-1">I Assigned</div>
-                    <div className="text-2xl font-bold text-purple-600">{stats.iAssigned}</div>
-                </div>
-                <div className="bg-white rounded-card shadow-card p-3 md:p-4">
-                    <div className="text-sm text-gray-600 mb-1">Self Tasks</div>
-                    <div className="text-2xl font-bold text-green-600">{stats.selfTasks}</div>
-                </div>
-            </div>
-
-            {/* View Filter Tabs */}
-            <div className="bg-white rounded-card shadow-card mb-6 p-4">
-                <div className="flex flex-wrap gap-2 mb-4 border-b border-gray-200 pb-4 overflow-x-auto nice-scrollbar">
-                    <button
-                        onClick={() => setViewFilter('assigned-to-me')}
-                        className={`px-4 py-2 rounded-lg font-medium transition-colors whitespace-nowrap shrink-0 ${viewFilter === 'assigned-to-me'
-                            ? 'bg-blue-500 text-white'
-                            : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                            }`}
-                    >
-                        Assigned to Me
-                    </button>
-                    <button
-                        onClick={() => setViewFilter('i-assigned')}
-                        className={`px-4 py-2 rounded-lg font-medium transition-colors whitespace-nowrap shrink-0 ${viewFilter === 'i-assigned'
-                            ? 'bg-purple-500 text-white'
-                            : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                            }`}
-                    >
-                        I Assigned
-                    </button>
-                    <button
-                        onClick={() => setViewFilter('self-tasks')}
-                        className={`px-4 py-2 rounded-lg font-medium transition-colors whitespace-nowrap shrink-0 ${viewFilter === 'self-tasks'
-                            ? 'bg-green-500 text-white'
-                            : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                            }`}
-                    >
-                        Self Tasks
-                    </button>
-                    {/* Hide All Tasks tab for Staff */}
-                    {!isStaff && (
-                        <button
-                            onClick={() => setViewFilter('all-tasks')}
-                            className={`px-4 py-2 rounded-lg font-medium transition-colors whitespace-nowrap shrink-0 ${viewFilter === 'all-tasks'
-                                ? 'bg-orange-500 text-white'
-                                : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                                }`}
-                        >
-                            All Tasks
-                        </button>
-                    )}
-                </div>
-
-                {/* Status Filter */}
-                <div className="flex flex-wrap gap-2 overflow-x-auto nice-scrollbar pb-2">
-                    <button
-                        onClick={() => setStatusFilter('all')}
-                        className={`px-4 py-2 rounded-lg font-medium transition-colors whitespace-nowrap shrink-0 ${statusFilter === 'all'
-                            ? 'bg-black text-white'
-                            : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                            }`}
-                    >
-                        All
-                    </button>
-                    <button
-                        onClick={() => setStatusFilter('pending')}
-                        className={`px-4 py-2 rounded-lg font-medium transition-colors whitespace-nowrap shrink-0 ${statusFilter === 'pending'
-                            ? 'bg-red-500 text-white'
-                            : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                            }`}
-                    >
-                        Pending
-                    </button>
-                    <button
-                        onClick={() => setStatusFilter('in-progress')}
-                        className={`px-4 py-2 rounded-lg font-medium transition-colors whitespace-nowrap shrink-0 ${statusFilter === 'in-progress'
-                            ? 'bg-yellow-500 text-white'
-                            : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                            }`}
-                    >
-                        In Progress
-                    </button>
-                    <button
-                        onClick={() => setStatusFilter('completed')}
-                        className={`px-4 py-2 rounded-lg font-medium transition-colors whitespace-nowrap shrink-0 ${statusFilter === 'completed'
-                            ? 'bg-green-500 text-white'
-                            : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                            }`}
-                    >
-                        Completed
-                    </button>
-                </div>
-
-                {/* Mobile Filter Button */}
-                <div className="md:hidden mt-4">
-                    <Button
-                        type="primary"
-                        onClick={() => setShowMobileFilters(true)}
-                        className="w-full flex items-center justify-center gap-2"
-                        icon={<Filter className="w-4 h-4" />}
-                    >
-                        Filters & Search
-                    </Button>
-                </div>
-
-
-                {/* Desktop Filters - Hidden on Mobile */}
-                <div className="hidden md:flex flex-col md:flex-row items-stretch md:items-center justify-between gap-3 mt-4 pt-4 border-t border-gray-200">
-                    <div className="grid grid-cols-1 md:flex md:flex-wrap items-center gap-3 mt-0 md:mt-3 w-full md:w-auto">
-                        <div className="hidden md:flex items-center gap-2">
-                            <Filter className="w-5 h-5 text-gray-500" />
-                            <span className="text-sm font-medium text-gray-700">Filters:</span>
-                        </div>
-
-                        {/* Department Filter */}
-                        <div className="w-full md:w-auto">
-                            <Select
-                                value={departmentFilter}
-                                onChange={(value) => setDepartmentFilter(value)}
-                                className="w-full md:w-48"
-                                placeholder="Department"
-                                options={[
-                                    { value: 'all', label: 'All Departments' },
-                                    ...departments.map(dept => ({ value: dept._id, label: dept.name }))
-                                ]}
-                            />
-                        </div>
-
-                        {/* Priority Filter */}
-                        <div className="w-full md:w-auto">
-                            <Select
-                                value={priorityFilter}
-                                onChange={(value) => setPriorityFilter(value)}
-                                className="w-full md:w-36"
-                                options={[
-                                    { value: 'all', label: 'All Priorities' },
-                                    { value: 'High', label: 'High Priority' },
-                                    { value: 'Medium', label: 'Medium Priority' },
-                                    { value: 'Low', label: 'Low Priority' }
-                                ]}
-                            />
-                        </div>
-
-                        {/* Role Filter */}
-                        <div className="w-full md:w-auto">
-                            <Select
-                                value={roleFilter}
-                                onChange={(value) => setRoleFilter(value)}
-                                className="w-full md:w-36"
-                                options={[
-                                    { value: 'all', label: 'All Roles' },
-                                    { value: 'director', label: 'Director' },
-                                    { value: 'generalmanager', label: 'General Manager' },
-                                    { value: 'manager', label: 'Manager' },
-                                    { value: 'staff', label: 'Staff' }
-                                ]}
-                            />
-                        </div>
-
-                        {/* User Filter */}
-                        <div className="w-full md:w-auto">
-                            <Select
-                                value={userFilter}
-                                onChange={(value) => setUserFilter(value)}
-                                className="w-full md:w-56"
-                                showSearch
-                                optionFilterProp="label"
-                                options={[
-                                    { value: 'all', label: 'All Users' },
-                                    ...users.map(u => ({
-                                        value: u.email,
-                                        label: `${u.name} (${u.role?.displayName || u.role})`
-                                    }))
-                                ]}
-                            />
-                        </div>
-
-                        {/* Clear Filters Button */}
-                        {(departmentFilter !== 'all' || priorityFilter !== 'all' || roleFilter !== 'all' || userFilter !== 'all') && (
-                            <Button
-                                type="text"
-                                danger
-                                onClick={() => {
-                                    setDepartmentFilter('all');
-                                    setPriorityFilter('all');
-                                    setRoleFilter('all');
-                                    setUserFilter('all');
-                                }}
-                                className="font-medium hover:bg-red-50 w-full md:w-auto"
-                            >
-                                Clear Filters
-                            </Button>
-                        )}
+                {canViewAssignedToMe && (
+                    <div className="bg-white rounded-card shadow-card p-3 md:p-4">
+                        <div className="text-sm text-gray-600 mb-1">Assigned to Me</div>
+                        <div className="text-2xl font-bold text-blue-600">{stats.assignedToMe}</div>
                     </div>
-
-                    <Button
-                        onClick={() => setShowSearch(!showSearch)}
-                        className="h-auto p-2.5 flex items-center justify-center bg-gray-100 hover:bg-gray-200 border-none self-end md:self-auto"
-                        icon={<Search className="w-5 h-5 text-gray-700" />}
-                    />
-
-                </div>
-
-                {/* Advanced Filters */}
-
-            </div>
-
-            {/* Task List */}
-            {loading ? (
-                <div className="flex  items-center justify-center py-12">
-                    <div className="text-center">
-                        <div className="w-16 h-16 border-4 border-primary border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
-                        <p className="text-gray-600">Loading tasks...</p>
+                )}
+                {canViewIAssigned && (
+                    <div className="bg-white rounded-card shadow-card p-3 md:p-4">
+                        <div className="text-sm text-gray-600 mb-1">I Assigned</div>
+                        <div className="text-2xl font-bold text-purple-600">{stats.iAssigned}</div>
                     </div>
-                </div>
-            ) : sortedTasks.length === 0 ? (
-                <div className="bg-white rounded-card shadow-card p-12 text-center">
-                    <ListTodo className="w-16 h-16 text-gray-400 mx-auto mb-4" />
-                    <h3 className="text-lg font-semibold text-gray-900 mb-2">No tasks found</h3>
-                    <p className="text-gray-600">
-                        {statusFilter === 'all'
-                            ? "No tasks in this category"
-                            : `No ${statusFilter.replace('-', ' ')} tasks`}
-                    </p>
-                </div>
-            ) : (
-                <div className="grid grid-cols-1 pt-5 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                    {sortedTasks.map(task => (
-                        <TaskCard
-                            key={task._id}
-                            task={task}
-                            onStatusChange={handleStatusChange}
-                            onView={handleViewTask}
-                            showActions={viewFilter === 'assigned-to-me' || viewFilter === 'self-tasks'}
-                        />
-                    ))}
-                </div>
-            )}
-
-            {/* Task Detail Modal */}
-            {selectedTask && (
-                <Modal
-                    isOpen={showDetailModal}
-                    onClose={() => {
-                        setShowDetailModal(false);
-                        setSelectedTask(null);
-                    }}
-                    title={`Task #${selectedTask.sno}`}
-                >
-                    <div className="space-y-4">
-                        <div>
-                            <label className="text-sm font-medium text-gray-700">Description</label>
-                            <p className="mt-1 text-gray-900">{selectedTask.task}</p>
-                        </div>
-
-                        {selectedTask.notes && (
-                            <div>
-                                <label className="text-sm font-medium text-gray-700">Notes</label>
-                                <p className="mt-1 text-gray-600 italic">{selectedTask.notes}</p>
-                            </div>
-                        )}
-
-                        <div className="grid grid-cols-2 gap-4">
-                            <div>
-                                <label className="text-sm font-medium text-gray-700">Status</label>
-                                <p className="mt-1 text-gray-900">{selectedTask.status}</p>
-                            </div>
-                            <div>
-                                <label className="text-sm font-medium text-gray-700">Priority</label>
-                                <p className="mt-1 text-gray-900">{selectedTask.priority}</p>
-                            </div>
-                        </div>
-
-                        {/* Comments Section */}
-                        <div className="border-t pt-4">
-                            <h4 className="text-sm font-medium text-gray-700 mb-3">Comments & Activity</h4>
-                            <div className="space-y-4 mb-4 max-h-60 overflow-y-auto">
-                                {selectedTask.comments?.map((comment, index) => (
-                                    <div key={index} className={`flex flex-col ${comment.itemType === 'system' ? 'items-center' : 'items-start'}`}>
-                                        <div className="bg-gray-50 rounded-lg p-3 w-full">
-                                            <div className="flex justify-between items-start mb-1">
-                                                <span className="font-medium text-sm text-gray-900">
-                                                    {comment.createdByName}
-                                                    {comment.userRole && <span className="text-xs text-gray-500 ml-2">({comment.userRole})</span>}
-                                                </span>
-                                                <span className="text-xs text-gray-500">
-                                                    {new Date(comment.createdAt).toLocaleString()}
-                                                </span>
-                                            </div>
-                                            <p className="text-sm text-gray-700 whitespace-pre-wrap">{comment.text}</p>
-                                        </div>
-                                    </div>
-                                ))}
-                                {(!selectedTask.comments || selectedTask.comments.length === 0) && (
-                                    <p className="text-sm text-gray-500 text-center py-2">No comments yet</p>
-                                )}
-                            </div>
-
-                            <div className="flex gap-2">
-                                <Input.TextArea
-                                    value={newComment}
-                                    onChange={(e) => setNewComment(e.target.value)}
-                                    placeholder="Add a note..."
-                                    autoSize={{ minRows: 2, maxRows: 4 }}
-                                    className="flex-1"
-                                />
-                                <Button
-                                    type="primary"
-                                    onClick={handleAddComment}
-                                    className="self-end"
-                                >
-                                    Add
-                                </Button>
-                            </div>
-                        </div>
-
-                        {selectedTask.status !== TASK_STATUS.COMPLETED && (viewFilter === 'assigned-to-me' || viewFilter === 'self-tasks') && (
+                )}
+                {canViewSelfTasks && (
+                    <div className="bg-white rounded-card shadow-card p-3 md:p-4">
+                        <div className="text-sm text-gray-600 mb-1">Self Tasks</div>
+                        <div className="text-2xl font-bold text-green-600">{stats.selfTasks}</div>
+                    </div>
+                )}
+            </div>
+            <div className='relative ' >
+                {/* View Filter Tabs */}
+                <div className="bg-white rounded-card shadow-card mb-6 p-4">
+                    <div className="flex flex-wrap gap-2 mb-4 border-b border-gray-200 pb-4 overflow-x-auto nice-scrollbar">
+                        {canViewAssignedToMe && (
                             <button
-                                onClick={() => {
-                                    handleCompleteTask(selectedTask._id);
-                                    setShowDetailModal(false);
-                                }}
-                                className="w-full px-4 py-2 bg-green-500 text-white rounded-lg hover:bg-green-600 transition-colors flex items-center justify-center gap-2"
+                                onClick={() => setViewFilter('assigned-to-me')}
+                                className={`md:px-4 px-4 py-2 rounded-lg font-small transition-colors whitespace-nowrap shrink-0 ${viewFilter === 'assigned-to-me'
+                                    ? 'bg-blue-500 text-white'
+                                    : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                                    }`}
                             >
-                                <CheckCircle2 className="w-5 h-5" />
-                                Mark as Completed
+                                My Works
+                            </button>
+                        )}
+                        {canViewIAssigned && (
+                            <button
+                                onClick={() => setViewFilter('i-assigned')}
+                                className={`md:px-4 px-4 py-2 rounded-lg font-medium transition-colors whitespace-nowrap shrink-0 ${viewFilter === 'i-assigned'
+                                    ? 'bg-purple-500 text-white'
+                                    : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                                    }`}
+                            >
+                                I Assigned
+                            </button>
+                        )}
+                        {canViewSelfTasks && (
+                            <button
+                                onClick={() => setViewFilter('self-tasks')}
+                                className={`md:px-4 px-2 py-2 rounded-lg font-medium transition-colors whitespace-nowrap shrink-0 ${viewFilter === 'self-tasks'
+                                    ? 'bg-green-500 text-white'
+                                    : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                                    }`}
+                            >
+                                Self Tasks
+                            </button>
+                        )}
+                        {/* Hide All Tasks tab if no viewAllTasks permission */}
+                        {canViewAllTasks && (
+                            <button
+                                onClick={() => setViewFilter('all-tasks')}
+                                className={`md:px-4 px-2 py-2 rounded-lg font-medium transition-colors whitespace-nowrap shrink-0 ${viewFilter === 'all-tasks'
+                                    ? 'bg-orange-500 text-white'
+                                    : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                                    }`}
+
+                            >
+                                All Tasks
+                            </button>
+                        )}
+                        {canViewDeptTasks && (
+                            <button
+                                onClick={() => setViewFilter('department-tasks')}
+                                className={`md:px-4 px-2 py-2 rounded-lg font-medium transition-colors whitespace-nowrap shrink-0 ${viewFilter === 'department-tasks'
+                                    ? 'bg-teal-500 text-white'
+                                    : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                                    }`}
+                            >
+                                Department Tasks
                             </button>
                         )}
                     </div>
-                </Modal>
-            )}
+
+                    {/* Status Filter */}
+                    <div className="flex flex-wrap gap-2 overflow-x-auto nice-scrollbar pb-2">
+                        <button
+                            onClick={() => setStatusFilter('all')}
+                            className={`md:px-4 px-2 py-2 rounded-lg font-medium transition-colors whitespace-nowrap shrink-0 ${statusFilter === 'all'
+                                ? 'bg-black text-white'
+                                : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                                }`}
+                        >
+                            All
+                        </button>
+                        <button
+                            onClick={() => setStatusFilter('pending')}
+                            className={`md:px-4 px-2 py-2 rounded-lg font-medium transition-colors whitespace-nowrap shrink-0 ${statusFilter === 'pending'
+                                ? 'bg-red-500 text-white'
+                                : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                                }`}
+                        >
+                            Pending
+                        </button>
+                        <button
+                            onClick={() => setStatusFilter('in-progress')}
+                            className={`md:px-4 px-2 py-2 rounded-lg font-medium transition-colors whitespace-nowrap shrink-0 ${statusFilter === 'in-progress'
+                                ? 'bg-yellow-500 text-white'
+                                : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                                }`}
+                        >
+                            In Progress
+                        </button>
+                        <button
+                            onClick={() => setStatusFilter('waiting-for-approval')}
+                            className={`md:px-4 px-2 py-2 rounded-lg font-medium transition-colors whitespace-nowrap shrink-0 ${statusFilter === 'waiting-for-approval'
+                                ? 'bg-blue-500 text-white'
+                                : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                                }`}
+                        >
+                            Waiting for Approval
+                        </button>
+                        <button
+                            onClick={() => setStatusFilter('completed')}
+                            className={`md:px-4 px-2 py-2 rounded-lg font-medium transition-colors whitespace-nowrap shrink-0 ${statusFilter === 'completed'
+                                ? 'bg-green-500 text-white'
+                                : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                                }`}
+                        >
+                            Completed
+                        </button>
+                    </div>
+
+                    {/* Mobile Filter Button */}
+                    <div className="md:hidden mt-4">
+                        <Button
+                            type="primary"
+                            onClick={() => setShowMobileFilters(true)}
+                            className="w-full flex items-center justify-center gap-2"
+                            icon={<Filter className="w-4 h-4" />}
+                        >
+                            Filters & Search
+                        </Button>
+                    </div>
+
+
+                    {/* Desktop Filters - Hidden on Mobile */}
+                    {/* Show filters permissions based */}
+                    {(() => {
+                        // Get tab-specific filter permissions
+                        const getFilterPermissions = () => {
+                            switch (viewFilter) {
+                                case 'all-tasks':
+                                    return {
+                                        department: user?.permissions?.filterAllTasksDepartment,
+                                        priority: user?.permissions?.filterAllTasksPriority,
+                                        role: user?.permissions?.filterAllTasksRole,
+                                        user: user?.permissions?.filterAllTasksUser,
+                                    };
+                                case 'department-tasks':
+                                    return {
+                                        department: user?.permissions?.filterDeptTasksDepartment,
+                                        priority: user?.permissions?.filterDeptTasksPriority,
+                                        role: user?.permissions?.filterDeptTasksRole,
+                                        user: user?.permissions?.filterDeptTasksUser,
+                                    };
+                                case 'assigned-to-me':
+                                    return {
+                                        department: user?.permissions?.filterAssignedToMeDepartment,
+                                        priority: user?.permissions?.filterAssignedToMePriority,
+                                        role: user?.permissions?.filterAssignedToMeRole,
+                                        user: user?.permissions?.filterAssignedToMeUser,
+                                    };
+                                case 'i-assigned':
+                                    return {
+                                        department: user?.permissions?.filterIAssignedDepartment,
+                                        priority: user?.permissions?.filterIAssignedPriority,
+                                        role: user?.permissions?.filterIAssignedRole,
+                                        user: user?.permissions?.filterIAssignedUser,
+                                    };
+                                case 'self-tasks':
+                                    return {
+                                        department: user?.permissions?.filterSelfTasksDepartment,
+                                        priority: user?.permissions?.filterSelfTasksPriority,
+                                        role: user?.permissions?.filterSelfTasksRole,
+                                        user: user?.permissions?.filterSelfTasksUser,
+                                    };
+                                default:
+                                    return { department: false, priority: false, role: false, user: false };
+                            }
+                        };
+
+                        const filterPerms = getFilterPermissions();
+
+                        return (
+                            <div className="hidden md:flex flex-col md:flex-row items-stretch md:items-center justify-between gap-3 mt-4 pt-4 border-t border-gray-200">
+                                <div className="grid grid-cols-1 md:flex md:flex-wrap items-center gap-3 mt-0 md:mt-3 w-full md:w-auto">
+                                    <div className="hidden md:flex items-center gap-2">
+                                        <Filter className="w-5 h-5 text-gray-500" />
+                                        <span className="text-sm font-medium text-gray-700">Filters:</span>
+                                    </div>
+
+                                    {/* Sort Filter */}
+                                    <div className="w-full md:w-auto">
+                                        <Select
+                                            value={sortBy}
+                                            onChange={(value) => setSortBy(value)}
+                                            className="w-full md:w-40"
+                                            options={[
+                                                { value: 'newest', label: 'Newest First' },
+                                                { value: 'oldest', label: 'Oldest First' },
+                                                { value: 'date', label: 'Sort by Due Date' },
+                                                { value: 'priority', label: 'Sort by Priority' },
+                                                { value: 'status', label: 'Sort by Status' }
+                                            ]}
+                                        />
+                                    </div>
+
+                                    {/* Department Filter */}
+                                    {filterPerms.department && (
+                                        <div className="w-full md:w-auto">
+                                            <Select
+                                                value={departmentFilter}
+                                                onChange={(value) => setDepartmentFilter(value)}
+                                                className="w-full md:w-48"
+                                                placeholder="Department"
+                                                options={[
+                                                    { value: 'all', label: 'All Departments' },
+                                                    ...departments.map(dept => ({ value: dept._id, label: dept.name }))
+                                                ]}
+                                            />
+                                        </div>
+                                    )}
+
+                                    {/* Priority Filter */}
+                                    {filterPerms.priority && (
+                                        <div className="w-full md:w-auto">
+                                            <Select
+                                                value={priorityFilter}
+                                                onChange={(value) => setPriorityFilter(value)}
+                                                className="w-full md:w-36"
+                                                options={[
+                                                    { value: 'all', label: 'All Priorities' },
+                                                    { value: 'High', label: 'High Priority' },
+                                                    { value: 'Medium', label: 'Medium Priority' },
+                                                    { value: 'Low', label: 'Low Priority' }
+                                                ]}
+                                            />
+                                        </div>
+                                    )}
+
+                                    {/* Role Filter */}
+                                    {filterPerms.role && (
+                                        <div className="w-full md:w-auto">
+                                            <Select
+                                                value={roleFilter}
+                                                onChange={(value) => setRoleFilter(value)}
+                                                className="w-full md:w-36"
+                                                options={[
+                                                    { value: 'all', label: 'All Roles' },
+                                                    { value: 'director', label: 'Director' },
+                                                    { value: 'generalmanager', label: 'General Manager' },
+                                                    { value: 'manager', label: 'Manager' },
+                                                    { value: 'staff', label: 'Staff' }
+                                                ]}
+                                            />
+                                        </div>
+                                    )}
+
+                                    {/* User Filter */}
+                                    {filterPerms.user && (
+                                        <div className="w-full md:w-auto">
+                                            <Select
+                                                value={userFilter}
+                                                onChange={(value) => setUserFilter(value)}
+                                                className="w-full md:w-56"
+                                                showSearch
+                                                optionFilterProp="label"
+                                                options={[
+                                                    { value: 'all', label: 'All Users' },
+                                                    ...users.map(u => ({
+                                                        value: u.email,
+                                                        label: `${u.name} (${u.role?.displayName || u.role})`
+                                                    }))
+                                                ]}
+                                            />
+                                        </div>
+                                    )}
+
+                                    {/* Clear Filters Button */}
+                                    {(departmentFilter !== 'all' || priorityFilter !== 'all' || roleFilter !== 'all' || userFilter !== 'all') && (
+                                        <Button
+                                            type="text"
+                                            danger
+                                            onClick={() => {
+                                                setDepartmentFilter('all');
+                                                setPriorityFilter('all');
+                                                setRoleFilter('all');
+                                                setUserFilter('all');
+                                            }}
+                                            className="font-medium hover:bg-red-50 w-full md:w-auto"
+                                        >
+                                            Clear Filters
+                                        </Button>
+                                    )}
+                                </div>
+
+                                <Button
+                                    onClick={() => setShowSearch(!showSearch)}
+                                    className="h-auto p-2.5 flex items-center justify-center bg-gray-100 hover:bg-gray-200 border-none self-end md:self-auto"
+                                    icon={<Search className="w-5 h-5 text-gray-700" />}
+                                />
+
+                            </div>
+                        );
+                    })()}
+
+                    {/* Advanced Filters */}
+
+                </div>
+
+                {/* Task List */}
+                {
+                    loading ? (
+                        <div className="flex  items-center justify-center py-12">
+                            <div className="text-center">
+                                <div className="w-16 h-16 border-4 border-primary border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
+                                <p className="text-gray-600">Loading tasks...</p>
+                            </div>
+                        </div>
+                    ) : sortedTasks.length === 0 ? (
+                        <div className="bg-white rounded-card shadow-card p-12 text-center">
+                            <ListTodo className="w-16 h-16 text-gray-400 mx-auto mb-4" />
+                            <h3 className="text-lg font-semibold text-gray-900 mb-2">No tasks found</h3>
+                            <p className="text-gray-600">
+                                {statusFilter === 'all'
+                                    ? "No tasks in this category"
+                                    : `No ${statusFilter.replace('-', ' ')} tasks`}
+                            </p>
+                        </div>
+                    ) : (
+                        <>
+                            <div className="grid grid-cols-1 pt-5 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                                {sortedTasks
+                                    .slice((currentPage - 1) * pageSize, currentPage * pageSize)
+                                    .map(task => {
+                                        // Helper to safely get string ID
+                                        const getId = (obj) => {
+                                            if (!obj) return '';
+                                            return typeof obj === 'object' ? obj._id?.toString() : obj.toString();
+                                        };
+                                        const userId = user._id?.toString();
+                                        const userEmail = user.email;
+
+                                        // Only assigned user can change status
+                                        const canEditStatus = task.assignedToEmail === userEmail;
+
+                                        // Strict Creator-Only permission for Edit/Delete actions, BUT allow global admins to override
+                                        const isCreator = getId(task.createdBy) === userId;
+
+                                        // User can edit if they have 'editAllTasks' OR if they are creator + have 'editOwnTasks'
+                                        const canEditDetails =
+                                            user.permissions.editAllTasks ||
+                                            (isCreator && user.permissions.editOwnTasks);
+
+                                        // User can delete if they have 'deleteAllTasks' OR if they are creator + have 'deleteOwnTasks'
+                                        const canDeleteTask =
+                                            user.permissions.deleteAllTasks ||
+                                            (isCreator && user.permissions.deleteOwnTasks);
+
+                                        return (
+                                            <TaskCard
+                                                key={task._id}
+                                                task={task}
+                                                onStatusChange={handleStatusChange}
+                                                onView={handleViewTask}
+                                                onEdit={canEditDetails ? handleEditTask : undefined}
+                                                onDelete={canDeleteTask ? handleDeleteTask : undefined}
+                                                showActions={true}
+                                                canEdit={canEditStatus}
+                                            />
+                                        );
+                                    })}
+                            </div>
+
+                            {/* Pagination */}
+                            {sortedTasks.length > 0 && (
+                                <div className="mt-8 flex justify-center">
+                                    <Pagination
+                                        current={currentPage}
+                                        total={sortedTasks.length}
+                                        pageSize={pageSize}
+                                        onChange={(page) => {
+                                            setCurrentPage(page);
+                                            window.scrollTo({ top: 0, behavior: 'smooth' });
+                                        }}
+                                        onShowSizeChange={(current, size) => {
+                                            setPageSize(size);
+                                            setCurrentPage(1);
+                                        }}
+                                        showSizeChanger
+                                        showTotal={(total, range) => `${range[0]}-${range[1]} of ${total} tasks`}
+                                        pageSizeOptions={['6', '12', '24', '48']}
+                                    />
+                                </div>
+                            )}
+                        </>
+                    )
+                }
+            </div>
+            {/* Task Detail Modal */}
+            {
+                selectedTask && (
+                    <Modal
+                        isOpen={showDetailModal}
+                        onClose={() => {
+                            setShowDetailModal(false);
+                            setSelectedTask(null);
+                        }}
+                        title={`Task #${selectedTask.sno}`}
+                    >
+                        <div className="space-y-4">
+
+
+                            {/* Comments Section */}
+                            <div className=" pt-4">
+                                <h4 className="text-sm font-medium text-gray-700 mb-3">Comments & Activity</h4>
+                                <div className="space-y-4 mb-4 max-h-60 overflow-y-auto">
+                                    {selectedTask.comments?.map((comment, index) => (
+                                        <div key={index} className={`flex flex-col ${comment.itemType === 'system' ? 'items-center' : 'items-start'}`}>
+                                            <div className="bg-gray-50 rounded-lg p-3 w-full">
+                                                <div className="flex justify-between items-start mb-1">
+                                                    <span className="font-medium text-sm text-gray-900">
+                                                        {comment.createdByName}
+                                                        {comment.userRole && <span className="text-xs text-gray-500 ml-2">({comment.userRole})</span>}
+                                                    </span>
+                                                    <span className="text-xs text-gray-500">
+                                                        {new Date(comment.createdAt).toLocaleString()}
+                                                    </span>
+                                                </div>
+                                                <p className="text-sm text-gray-700 whitespace-pre-wrap">{comment.text}</p>
+                                            </div>
+                                        </div>
+                                    ))}
+                                    {(!selectedTask.comments || selectedTask.comments.length === 0) && (
+                                        <p className="text-sm text-gray-500 text-center py-2">No comments yet</p>
+                                    )}
+                                </div>
+
+                                <div className="flex gap-2">
+                                    <Input.TextArea
+                                        value={newComment}
+                                        onChange={(e) => setNewComment(e.target.value)}
+                                        placeholder="Add a note..."
+                                        autoSize={{ minRows: 2, maxRows: 4 }}
+                                        className="flex-1"
+                                    />
+
+                                </div>
+                                <div className='w-full pt-5'>
+                                    <Button
+                                        type="primary"
+                                        onClick={handleAddComment}
+                                        className="self-end"
+                                    >
+                                        Add
+                                    </Button>
+                                </div>
+
+                            </div>
+
+                        </div>
+                    </Modal>
+                )
+            }
 
             {/* Create Task Modal */}
             <Modal
                 isOpen={showCreateModal}
-                onClose={() => setShowCreateModal(false)}
-                title="Create New Task"
+                onClose={() => {
+                    setShowCreateModal(false);
+                    setEditingTask(null);
+                    setCreateFormData({
+                        task: '',
+                        assignedToEmail: '',
+                        priority: 'Medium',
+                        targetDate: '',
+                        targetTime: '',
+                        notes: '',
+                        isSelfTask: false,
+                        taskGivenBy: '',
+                    });
+                }}
+                title={editingTask ? "Edit Task" : "Create New Task"}
             >
-                <Form layout="vertical" onFinish={handleCreateTask} className="mt-4">
+                <Form layout="vertical" onFinish={handleSubmitTask} className="mt-4">
                     <Form.Item
                         label={<span className="font-medium text-gray-700">Task Description <span className="text-danger">*</span></span>}
                         required
@@ -764,7 +1101,7 @@ export default function AllTasks() {
                             >
                                 {users.map(u => (
                                     <Select.Option key={u._id} value={u.email}>
-                                        {u.name} ({u.role?.displayName || u.role})
+                                        {u.name} ({u.designation || u.role?.displayName})
                                     </Select.Option>
                                 ))}
                             </Select>
@@ -780,7 +1117,7 @@ export default function AllTasks() {
                                     <span className="font-medium">Self-Assigned Task</span>
                                 </div>
                                 <p className="text-sm text-blue-600 mt-2">
-                                    Assigned to: <span className="font-semibold">{user.name}</span> ({user.email})
+                                    Assigned to: <span className="font-semibold">{user.name}</span> ({user.designation || user.role?.displayName})
                                 </p>
                             </div>
 
@@ -802,7 +1139,7 @@ export default function AllTasks() {
                                         .filter(u => u.email !== user.email)
                                         .map(u => (
                                             <Select.Option key={u._id} value={u.email}>
-                                                {u.name} ({u.role?.displayName || u.role})
+                                                {u.name} ({u.designation || u.role?.displayName})
                                             </Select.Option>
                                         ))}
                                 </Select>
@@ -810,7 +1147,7 @@ export default function AllTasks() {
                         </div>
                     )}
 
-                    <div className="grid grid-cols-3 gap-4">
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                         <Form.Item label={<span className="font-medium text-gray-700">Priority</span>}>
                             <Select
                                 value={createFormData.priority}
@@ -899,7 +1236,7 @@ export default function AllTasks() {
                             className="flex-1 bg-primary hover:bg-primary-600"
                             icon={<Plus className="w-4 h-4" />}
                         >
-                            Create Task
+                            {editingTask ? 'Update Task' : 'Create Task'}
                         </Button>
                     </div>
                 </Form>
@@ -911,117 +1248,192 @@ export default function AllTasks() {
                 onClose={() => setShowMobileFilters(false)}
                 title="Filters & Search"
             >
-                <div className="space-y-4">
-                    {/* Search */}
-                    <div>
-                        <label className="text-sm font-medium text-gray-700 mb-2 block">Search</label>
-                        <Input
-                            prefix={<Search className="w-4 h-4 text-gray-400" />}
-                            placeholder="Search tasks..."
-                            value={searchQuery}
-                            onChange={(e) => setSearchQuery(e.target.value)}
-                            allowClear
-                            size="large"
-                        />
-                    </div>
+                {(() => {
+                    // Get tab-specific filter permissions for mobile
+                    const getFilterPermissions = () => {
+                        switch (viewFilter) {
+                            case 'all-tasks':
+                                return {
+                                    department: user?.permissions?.filterAllTasksDepartment,
+                                    priority: user?.permissions?.filterAllTasksPriority,
+                                    role: user?.permissions?.filterAllTasksRole,
+                                    user: user?.permissions?.filterAllTasksUser,
+                                };
+                            case 'department-tasks':
+                                return {
+                                    department: user?.permissions?.filterDeptTasksDepartment,
+                                    priority: user?.permissions?.filterDeptTasksPriority,
+                                    role: user?.permissions?.filterDeptTasksRole,
+                                    user: user?.permissions?.filterDeptTasksUser,
+                                };
+                            case 'assigned-to-me':
+                                return {
+                                    department: user?.permissions?.filterAssignedToMeDepartment,
+                                    priority: user?.permissions?.filterAssignedToMePriority,
+                                    role: user?.permissions?.filterAssignedToMeRole,
+                                    user: user?.permissions?.filterAssignedToMeUser,
+                                };
+                            case 'i-assigned':
+                                return {
+                                    department: user?.permissions?.filterIAssignedDepartment,
+                                    priority: user?.permissions?.filterIAssignedPriority,
+                                    role: user?.permissions?.filterIAssignedRole,
+                                    user: user?.permissions?.filterIAssignedUser,
+                                };
+                            case 'self-tasks':
+                                return {
+                                    department: user?.permissions?.filterSelfTasksDepartment,
+                                    priority: user?.permissions?.filterSelfTasksPriority,
+                                    role: user?.permissions?.filterSelfTasksRole,
+                                    user: user?.permissions?.filterSelfTasksUser,
+                                };
+                            default:
+                                return { department: false, priority: false, role: false, user: false };
+                        }
+                    };
 
-                    {/* Department Filter */}
-                    <div>
-                        <label className="text-sm font-medium text-gray-700 mb-2 block">Department</label>
-                        <Select
-                            value={departmentFilter}
-                            onChange={(value) => setDepartmentFilter(value)}
-                            className="w-full"
-                            size="large"
-                            options={[
-                                { value: 'all', label: 'All Departments' },
-                                ...departments.map(dept => ({ value: dept._id, label: dept.name }))
-                            ]}
-                        />
-                    </div>
+                    const filterPerms = getFilterPermissions();
 
-                    {/* Priority Filter */}
-                    <div>
-                        <label className="text-sm font-medium text-gray-700 mb-2 block">Priority</label>
-                        <Select
-                            value={priorityFilter}
-                            onChange={(value) => setPriorityFilter(value)}
-                            className="w-full"
-                            size="large"
-                            options={[
-                                { value: 'all', label: 'All Priorities' },
-                                { value: 'High', label: 'High Priority' },
-                                { value: 'Medium', label: 'Medium Priority' },
-                                { value: 'Low', label: 'Low Priority' }
-                            ]}
-                        />
-                    </div>
+                    return (
+                        <div className="space-y-4">
+                            {/* Search */}
+                            <div>
+                                <label className="text-sm font-medium text-gray-700 mb-2 block">Search</label>
+                                <Input
+                                    prefix={<Search className="w-4 h-4 text-gray-400" />}
+                                    placeholder="Search tasks..."
+                                    value={searchQuery}
+                                    onChange={(e) => setSearchQuery(e.target.value)}
+                                    allowClear
+                                    size="large"
+                                />
+                            </div>
 
-                    {/* Role Filter */}
-                    <div>
-                        <label className="text-sm font-medium text-gray-700 mb-2 block">Role</label>
-                        <Select
-                            value={roleFilter}
-                            onChange={(value) => setRoleFilter(value)}
-                            className="w-full"
-                            size="large"
-                            options={[
-                                { value: 'all', label: 'All Roles' },
-                                { value: 'director', label: 'Director' },
-                                { value: 'generalmanager', label: 'General Manager' },
-                                { value: 'manager', label: 'Manager' },
-                                { value: 'staff', label: 'Staff' }
-                            ]}
-                        />
-                    </div>
+                            {/* Sort Filter */}
+                            <div>
+                                <label className="text-sm font-medium text-gray-700 mb-2 block">Sort By</label>
+                                <Select
+                                    value={sortBy}
+                                    onChange={(value) => setSortBy(value)}
+                                    className="w-full"
+                                    size="large"
+                                    options={[
+                                        { value: 'newest', label: 'Newest First' },
+                                        { value: 'oldest', label: 'Oldest First' },
+                                        { value: 'date', label: 'Sort by Due Date' },
+                                        { value: 'priority', label: 'Sort by Priority' },
+                                        { value: 'status', label: 'Sort by Status' }
+                                    ]}
+                                />
+                            </div>
 
-                    {/* User Filter */}
-                    <div>
-                        <label className="text-sm font-medium text-gray-700 mb-2 block">User</label>
-                        <Select
-                            value={userFilter}
-                            onChange={(value) => setUserFilter(value)}
-                            className="w-full"
-                            size="large"
-                            showSearch
-                            optionFilterProp="label"
-                            options={[
-                                { value: 'all', label: 'All Users' },
-                                ...users.map(u => ({
-                                    value: u.email,
-                                    label: `${u.name} (${u.role?.displayName || u.role})`
-                                }))
-                            ]}
-                        />
-                    </div>
+                            {/* Department Filter */}
+                            {filterPerms.department && (
+                                <div>
+                                    <label className="text-sm font-medium text-gray-700 mb-2 block">Department</label>
+                                    <Select
+                                        value={departmentFilter}
+                                        onChange={(value) => setDepartmentFilter(value)}
+                                        className="w-full"
+                                        size="large"
+                                        options={[
+                                            { value: 'all', label: 'All Departments' },
+                                            ...departments.map(dept => ({ value: dept._id, label: dept.name }))
+                                        ]}
+                                    />
+                                </div>
+                            )}
 
-                    {/* Action Buttons */}
-                    <div className="flex gap-3 pt-4 border-t">
-                        <Button
-                            danger
-                            onClick={() => {
-                                setSearchQuery('');
-                                setDepartmentFilter('all');
-                                setPriorityFilter('all');
-                                setRoleFilter('all');
-                                setUserFilter('all');
-                            }}
-                            className="flex-1"
-                            size="large"
-                        >
-                            Clear All
-                        </Button>
-                        <Button
-                            type="primary"
-                            onClick={() => setShowMobileFilters(false)}
-                            className="flex-1"
-                            size="large"
-                        >
-                            Apply Filters
-                        </Button>
-                    </div>
-                </div>
+                            {/* Priority Filter */}
+                            {filterPerms.priority && (
+                                <div>
+                                    <label className="text-sm font-medium text-gray-700 mb-2 block">Priority</label>
+                                    <Select
+                                        value={priorityFilter}
+                                        onChange={(value) => setPriorityFilter(value)}
+                                        className="w-full"
+                                        size="large"
+                                        options={[
+                                            { value: 'all', label: 'All Priorities' },
+                                            { value: 'High', label: 'High Priority' },
+                                            { value: 'Medium', label: 'Medium Priority' },
+                                            { value: 'Low', label: 'Low Priority' }
+                                        ]}
+                                    />
+                                </div>
+                            )}
+
+                            {/* Role Filter */}
+                            {filterPerms.role && (
+                                <div>
+                                    <label className="text-sm font-medium text-gray-700 mb-2 block">Role</label>
+                                    <Select
+                                        value={roleFilter}
+                                        onChange={(value) => setRoleFilter(value)}
+                                        className="w-full"
+                                        size="large"
+                                        options={[
+                                            { value: 'all', label: 'All Roles' },
+                                            { value: 'director', label: 'Director' },
+                                            { value: 'generalmanager', label: 'General Manager' },
+                                            { value: 'manager', label: 'Manager' },
+                                            { value: 'staff', label: 'Staff' }
+                                        ]}
+                                    />
+                                </div>
+                            )}
+
+                            {/* User Filter */}
+                            {filterPerms.user && (
+                                <div>
+                                    <label className="text-sm font-medium text-gray-700 mb-2 block">User</label>
+                                    <Select
+                                        value={userFilter}
+                                        onChange={(value) => setUserFilter(value)}
+                                        className="w-full"
+                                        size="large"
+                                        showSearch
+                                        optionFilterProp="label"
+                                        options={[
+                                            { value: 'all', label: 'All Users' },
+                                            ...users.map(u => ({
+                                                value: u.email,
+                                                label: `${u.name} (${u.role?.displayName || u.role})`
+                                            }))
+                                        ]}
+                                    />
+                                </div>
+                            )}
+
+                            {/* Action Buttons */}
+                            <div className="flex gap-3 pt-4 border-t">
+                                <Button
+                                    danger
+                                    onClick={() => {
+                                        setSearchQuery('');
+                                        setDepartmentFilter('all');
+                                        setPriorityFilter('all');
+                                        setRoleFilter('all');
+                                        setUserFilter('all');
+                                    }}
+                                    className="flex-1"
+                                    size="large"
+                                >
+                                    Clear All
+                                </Button>
+                                <Button
+                                    type="primary"
+                                    onClick={() => setShowMobileFilters(false)}
+                                    className="flex-1"
+                                    size="large"
+                                >
+                                    Apply Filters
+                                </Button>
+                            </div>
+                        </div>
+                    );
+                })()}
             </Modal>
-        </div>
+        </div >
     );
 }

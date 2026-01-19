@@ -11,6 +11,7 @@ export default function Users() {
     const { user } = useAuth();
     const [users, setUsers] = useState([]);
     const [departments, setDepartments] = useState([]);
+    const [roles, setRoles] = useState([]); // Add roles state
     const [loading, setLoading] = useState(true);
     const [activeTab, setActiveTab] = useState('all');
     const [searchQuery, setSearchQuery] = useState('');
@@ -20,9 +21,19 @@ export default function Users() {
     const [selectedUser, setSelectedUser] = useState(null);
 
     useEffect(() => {
-        fetchUsers();
-        fetchDepartments();
+        const loadData = async () => {
+            await fetchUsers();
+            await fetchDepartments();
+        };
+        loadData();
     }, []);
+
+    useEffect(() => {
+        // Fetch roles after users are loaded
+        if (users.length > 0) {
+            fetchRoles();
+        }
+    }, [users.length]);
 
     const fetchUsers = async () => {
         try {
@@ -41,6 +52,43 @@ export default function Users() {
             setDepartments(response.data.departments || []);
         } catch (error) {
             console.error('Error fetching departments:', error);
+        }
+    };
+
+    const fetchRoles = async () => {
+        try {
+            const response = await api.get('/users/available-roles');
+            // available-roles returns only roles that the user can manage
+            const availableRoles = response.data.roles || [];
+
+            // Also include current user's own role for display purposes
+            const currentUserRole = user?.role;
+            if (currentUserRole && typeof currentUserRole === 'object') {
+                const hasCurrentRole = availableRoles.some(r => r._id === currentUserRole._id);
+                if (!hasCurrentRole) {
+                    availableRoles.push(currentUserRole);
+                }
+            }
+
+            setRoles(availableRoles);
+        } catch (error) {
+            console.error('Error fetching roles:', error);
+            // Fallback: extract unique roles from users list
+            const userRoles = users.map(u => u.role).filter(Boolean);
+            const uniqueRoles = [];
+            const seenRoleIds = new Set();
+
+            userRoles.forEach(role => {
+                if (typeof role === 'object') {
+                    const roleId = role._id;
+                    if (!seenRoleIds.has(roleId)) {
+                        seenRoleIds.add(roleId);
+                        uniqueRoles.push(role);
+                    }
+                }
+            });
+
+            setRoles(uniqueRoles);
         }
     };
 
@@ -76,36 +124,43 @@ export default function Users() {
 
     const getRoleBadgeColor = (role) => {
         const roleName = role?.name || role;
-        switch (roleName) {
-            case 'director':
-                return 'bg-purple-100 text-purple-700';
-            case 'generalmanager':
-                return 'bg-primary-100 text-primary-700';
-            case 'manager':
-                return 'bg-success-100 text-success-700';
-            case 'staff':
-                return 'bg-gray-100 text-gray-700';
-            default:
-                return 'bg-gray-100 text-gray-700';
-        }
+        const roleLevel = role?.level || 0;
+
+        // Color based on role level for dynamic roles
+        if (roleLevel >= 5) return 'bg-gradient-to-r from-purple-500 to-pink-500 text-white'; // Super Admin
+        if (roleLevel >= 4) return 'bg-purple-100 text-purple-700'; // Director level
+        if (roleLevel >= 3) return 'bg-primary-100 text-primary-700'; // GM level
+        if (roleLevel >= 2) return 'bg-success-100 text-success-700'; // Manager level
+        return 'bg-gray-100 text-gray-700'; // Staff level
+    };
+
+    const getDesignationColor = (designation) => {
+        const level = designation?.level || 0;
+
+        if (level >= 5) return 'bg-gradient-to-r from-blue-600 to-indigo-600 text-white';
+        if (level >= 4) return 'bg-blue-100 text-blue-700';
+        if (level >= 3) return 'bg-indigo-100 text-indigo-700';
+        if (level >= 2) return 'bg-cyan-100 text-cyan-700';
+        return 'bg-slate-100 text-slate-600';
     };
 
     // Get user role name
     const userRoleName = user?.role?.name || user?.role;
 
-    // Define all tabs
+    // Create tabs based on available roles (roles user can manage)
+    // Show "All Members" tab plus tabs for each role the user can manage
     const allTabs = [
         { key: 'all', label: `All Members (${users.length})` },
-        { key: 'director', label: `Directors (${users.filter(u => u.role?.name === 'director').length})` },
-        { key: 'generalmanager', label: `General Managers (${users.filter(u => u.role?.name === 'generalmanager').length})` },
-        { key: 'manager', label: `Managers (${users.filter(u => u.role?.name === 'manager').length})` },
-        { key: 'staff', label: `Staff (${users.filter(u => u.role?.name === 'staff').length})` },
+        ...roles
+            .filter(role => role.name !== 'superadmin') // Never show Super Admin tab
+            .map(role => ({
+                key: role.name,
+                label: `${role.displayName} (${users.filter(u => u.role?.name === role.name).length})`
+            }))
     ];
 
-    // Filter tabs based on user role
-    const tabsItems = userRoleName === 'manager'
-        ? allTabs.filter(tab => ['all', 'manager', 'staff'].includes(tab.key))
-        : allTabs;
+    // Use all tabs - roles state already contains only manageable roles from available-roles endpoint
+    const tabsItems = allTabs;
 
     const filteredUsers = users.filter(u => {
         const matchesTab = activeTab === 'all' || u.role?.name === activeTab;
@@ -135,7 +190,7 @@ export default function Users() {
     return (
         <div>
             {/* Header */}
-            <div className="flex items-center justify-between mb-6">
+            <div className="block md:flex items-center justify-between mb-6">
                 <div>
                     <h1 className="text-2xl font-bold text-gray-900">Team Members</h1>
                     <p className="text-gray-500 mt-1">Manage your team members and their roles</p>
@@ -226,9 +281,14 @@ export default function Users() {
                                 <div className="w-12 h-12 bg-linear-to-br from-primary to-purple-600 rounded-full flex items-center justify-center text-white font-semibold text-lg">
                                     {member.name.charAt(0).toUpperCase()}
                                 </div>
+                                <div className="flex items-center gap-2">
+                                <span className={`px-3 py-1 rounded-full text-xs font-medium ${getDesignationColor(member.designation)}`}>
+                                    {member.designation}
+                                </span>
                                 <span className={`px-3 py-1 rounded-full text-xs font-medium ${getRoleBadgeColor(member.role)}`}>
                                     {member.role?.displayName || member.role}
                                 </span>
+                                </div>
                             </div>
 
                             <h3 className="text-lg font-semibold text-gray-900 mb-1">{member.name}</h3>

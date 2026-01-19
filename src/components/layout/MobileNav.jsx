@@ -16,51 +16,64 @@ export default function MobileNav() {
             icon: Home,
             label: 'Home',
             notForSuperAdmin: true,
+            permission: null,
         },
         {
-            path: '/tasks',
+            path: '/all-tasks',
             icon: CheckSquare,
-            label: 'My Tasks',
+            label: 'All Tasks',
             notForSuperAdmin: true,
+            permission: null,
         },
         {
             path: '/create-task',
             icon: PlusCircle,
             label: 'Create',
             notForSuperAdmin: true,
+            permission: 'createTasks',
         },
         {
             path: '/approvals',
             icon: ClipboardCheck,
             label: 'Approvals',
             notForSuperAdmin: true,
+            permission: 'approveTasks',
         },
         {
             path: '/users',
             icon: Users,
             label: 'Team',
             superAdminAccess: true,
+            permission: 'viewUsers',
         },
         {
             path: '/departments',
             icon: Building2,
             label: 'Depts',
             superAdminAccess: true,
+            permission: 'viewDepartments',
         },
         {
             path: '/roles',
             icon: Shield,
             label: 'Roles',
             superAdminAccess: true,
+            permission: 'viewRoles',
         },
         {
             path: '/profile',
             icon: User,
             label: 'Profile',
+            permission: null,
         },
     ];
 
     const filteredNavItems = navItems.filter(item => {
+        // Check permission first
+        if (item.permission && !user?.permissions?.[item.permission]) {
+            return false;
+        }
+
         // Super admin: only show items with superAdminAccess flag or no restriction
         if (isSuperAdmin) {
             return item.superAdminAccess === true || (!item.notForSuperAdmin && !item.superAdminAccess);

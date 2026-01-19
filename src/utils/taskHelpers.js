@@ -1,6 +1,7 @@
 export const TASK_STATUS = {
     PENDING: 'Pending',
     IN_PROGRESS: 'In Progress',
+    WAITING_FOR_APPROVAL: 'Waiting for Approval',
     COMPLETED: 'Completed',
 };
 
@@ -28,6 +29,8 @@ export const getStatusColor = (status) => {
             return 'bg-warning-100 text-warning-700 border-warning-200';
         case TASK_STATUS.IN_PROGRESS:
             return 'bg-info-100 text-info-700 border-info-200';
+        case TASK_STATUS.WAITING_FOR_APPROVAL:
+            return 'bg-blue-100 text-blue-700 border-blue-200';
         case TASK_STATUS.COMPLETED:
             return 'bg-success-100 text-success-700 border-success-200';
         default:

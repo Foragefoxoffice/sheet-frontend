@@ -59,21 +59,6 @@ export default function CreateDepartmentForm({ onSuccess, onCancel, managers = [
                 />
             </Form.Item>
 
-            {/* Manager selection can be added here if needed, keeping it minimal as per original */}
-            {(managers && managers.length > 0) && (
-                <Form.Item
-                    label={<span className="font-medium text-gray-700">Manager (Optional)</span>}
-                    name="manager"
-                >
-                    <Select placeholder="Select a manager" size="large" allowClear>
-                        {managers.map(mgr => (
-                            <Select.Option key={mgr.id || mgr._id} value={mgr.id || mgr._id}>
-                                {mgr.name} ({mgr.email})
-                            </Select.Option>
-                        ))}
-                    </Select>
-                </Form.Item>
-            )}
 
             <div className="flex gap-3 pt-2">
                 <Button size="large" onClick={onCancel} className="flex-1">

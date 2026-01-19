@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Save } from 'lucide-react';
-import { Form, Input, Select, Button } from 'antd';
+import { Form, Input, Select, Button, Space } from 'antd';
 import { useAuth } from '../../../hooks/useAuth';
 import api from '../../../utils/api';
 import { showToast } from '../../../utils/helpers';
@@ -33,6 +33,7 @@ export default function EditUserForm({ user: userToEdit, onSuccess, onCancel, de
                 whatsapp: userToEdit.whatsapp?.replace('91', ''),
                 role: roleId,
                 department: departmentId,
+                designation: userToEdit.designation || '',
             });
         }
     }, [userToEdit, availableRoles, form]);
@@ -74,6 +75,7 @@ export default function EditUserForm({ user: userToEdit, onSuccess, onCancel, de
                 email: values.email,
                 role: values.role,
                 department: values.department,
+                designation: values.designation,
                 whatsapp: formattedWhatsapp,
             };
 
@@ -118,6 +120,13 @@ export default function EditUserForm({ user: userToEdit, onSuccess, onCancel, de
             </Form.Item>
 
             <Form.Item
+                label={<span className="font-medium text-gray-700">Designation</span>}
+                name="designation"
+            >
+                <Input placeholder="Enter designation (e.g., Senior Developer)" size="large" />
+            </Form.Item>
+
+            <Form.Item
                 label={<span className="font-medium text-gray-700">Email Address</span>}
                 name="email"
                 rules={[
@@ -137,16 +146,24 @@ export default function EditUserForm({ user: userToEdit, onSuccess, onCancel, de
                     { pattern: /^\d+$/, message: 'Must be digits only' }
                 ]}
             >
-                <Input
-                    addonBefore="+91"
-                    placeholder="98765 43210"
-                    maxLength={10}
-                    size="large"
-                    onChange={(e) => {
-                        const value = e.target.value.replace(/\D/g, '').substring(0, 10);
-                        form.setFieldsValue({ whatsapp: value });
-                    }}
-                />
+                <Space.Compact style={{ width: '100%' }}>
+                    <Input
+                        style={{ width: '60px' }}
+                        value="+91"
+                        disabled
+                        className="text-center"
+                        size="large"
+                    />
+                    <Input
+                        placeholder="98765 43210"
+                        maxLength={10}
+                        size="large"
+                        onChange={(e) => {
+                            const value = e.target.value.replace(/\D/g, '').substring(0, 10);
+                            form.setFieldsValue({ whatsapp: value });
+                        }}
+                    />
+                </Space.Compact>
             </Form.Item>
 
             <Form.Item

@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Plus, Edit2, Trash2, Shield, Search as SearchIcon, ShieldAlert } from 'lucide-react';
+import { Plus, Edit2, Trash2, Shield, Search as SearchIcon } from 'lucide-react';
 import { Input, Button, Modal as AntModal, Form, Checkbox, Card, Select } from 'antd';
 import { useAuth } from '../hooks/useAuth';
 import Modal from '../components/common/Modal';
@@ -16,16 +16,9 @@ export default function Roles() {
     const [selectedRole, setSelectedRole] = useState(null);
     const [form] = Form.useForm();
 
-    // Check if user has permission to view roles
-    const canViewRoles = user?.permissions?.viewRoles;
-
     useEffect(() => {
-        if (canViewRoles) {
-            fetchRoles();
-        } else {
-            setLoading(false);
-        }
-    }, [canViewRoles]);
+        fetchRoles();
+    }, []);
 
     const fetchRoles = async () => {
         try {
@@ -43,14 +36,7 @@ export default function Roles() {
     const permissionCategories = {
         'User Management': ['viewUsers', 'createUsers', 'editUsers', 'deleteUsers'],
         'Department Management': ['viewDepartments', 'createDepartments', 'editDepartments', 'deleteDepartments'],
-        'Department Management': ['viewDepartments', 'createDepartments', 'editDepartments', 'deleteDepartments'],
-        'Task Management': ['viewAllTasks', 'viewDepartmentTasks', 'viewAssignedToMeTasks', 'viewIAssignedTasks', 'viewSelfTasks', 'createTasks', 'editOwnTasks', 'editAllTasks', 'deleteOwnTasks', 'deleteAllTasks'],
-        'All Tasks Tab Filters': ['filterAllTasksDepartment', 'filterAllTasksPriority', 'filterAllTasksRole', 'filterAllTasksUser'],
-        'Department Tasks Tab Filters': ['filterDeptTasksDepartment', 'filterDeptTasksPriority', 'filterDeptTasksRole', 'filterDeptTasksUser'],
-        'Assigned to Me Tab Filters': ['filterAssignedToMeDepartment', 'filterAssignedToMePriority', 'filterAssignedToMeRole', 'filterAssignedToMeUser'],
-        'I Assigned Tab Filters': ['filterIAssignedDepartment', 'filterIAssignedPriority', 'filterIAssignedRole', 'filterIAssignedUser'],
-        'Self Tasks Tab Filters': ['filterSelfTasksDepartment', 'filterSelfTasksPriority', 'filterSelfTasksRole', 'filterSelfTasksUser'],
-        'Approvals': ['viewApprovals', 'approveRejectTasks'],
+        'Task Management': ['viewAllTasks', 'createTasks', 'editOwnTasks', 'editAllTasks', 'deleteOwnTasks', 'deleteAllTasks'],
         'Approvals': ['viewApprovals', 'approveRejectTasks'],
         'Reports': ['viewReports', 'downloadReports'],
         'Role Management': ['viewRoles', 'createRoles', 'editRoles', 'deleteRoles'],
@@ -66,40 +52,11 @@ export default function Roles() {
         editDepartments: 'Edit Departments',
         deleteDepartments: 'Delete Departments',
         viewAllTasks: 'View All Tasks',
-        viewDepartmentTasks: 'View Department Tasks',
-        viewAssignedToMeTasks: 'View "Assigned To Me"',
-        viewIAssignedTasks: 'View "I Assigned"',
-        viewSelfTasks: 'View "Self Tasks"',
         createTasks: 'Create Tasks',
         editOwnTasks: 'Edit Own Tasks',
         editAllTasks: 'Edit All Tasks',
         deleteOwnTasks: 'Delete Own Tasks',
         deleteAllTasks: 'Delete All Tasks',
-        // All Tasks Tab Filters
-        filterAllTasksDepartment: 'Department Filter',
-        filterAllTasksPriority: 'Priority Filter',
-        filterAllTasksRole: 'Role Filter',
-        filterAllTasksUser: 'User Filter',
-        // Department Tasks Tab Filters
-        filterDeptTasksDepartment: 'Department Filter',
-        filterDeptTasksPriority: 'Priority Filter',
-        filterDeptTasksRole: 'Role Filter',
-        filterDeptTasksUser: 'User Filter',
-        // Assigned to Me Tab Filters
-        filterAssignedToMeDepartment: 'Department Filter',
-        filterAssignedToMePriority: 'Priority Filter',
-        filterAssignedToMeRole: 'Role Filter',
-        filterAssignedToMeUser: 'User Filter',
-        // I Assigned Tab Filters
-        filterIAssignedDepartment: 'Department Filter',
-        filterIAssignedPriority: 'Priority Filter',
-        filterIAssignedRole: 'Role Filter',
-        filterIAssignedUser: 'User Filter',
-        // Self Tasks Tab Filters
-        filterSelfTasksDepartment: 'Department Filter',
-        filterSelfTasksPriority: 'Priority Filter',
-        filterSelfTasksRole: 'Role Filter',
-        filterSelfTasksUser: 'User Filter',
         viewApprovals: 'View Approvals',
         approveRejectTasks: 'Approve/Reject Tasks',
         viewReports: 'View Reports',
@@ -118,21 +75,12 @@ export default function Roles() {
 
     const handleEditRole = (role) => {
         setSelectedRole(role);
-        const formValues = {
+        form.setFieldsValue({
             name: role.name,
             displayName: role.displayName,
             description: role.description,
             ...role.permissions
-        };
-
-        // Add managedRoles as checkbox values
-        if (role.managedRoles && Array.isArray(role.managedRoles)) {
-            role.managedRoles.forEach(managedRoleId => {
-                formValues[`managedRole_${managedRoleId}`] = true;
-            });
-        }
-
-        form.setFieldsValue(formValues);
+        });
         setShowEditModal(true);
     };
 
@@ -167,7 +115,7 @@ export default function Roles() {
                     if (values[key]) {
                         managedRoles.push(key.replace('managedRole_', ''));
                     }
-                } else if (key !== 'name' && key !== 'displayName' && key !== 'description') {
+                } else if (key !== 'name' && key !== 'displayName' && key !== 'description' && key !== 'level') {
                     permissions[key] = values[key];
                 }
             });
@@ -176,6 +124,7 @@ export default function Roles() {
                 name: values.name,
                 displayName: values.displayName,
                 description: values.description,
+                level: values.level,
                 permissions,
                 managedRoles
             };
@@ -225,25 +174,10 @@ export default function Roles() {
         );
     }
 
-    // Access Denied UI
-    if (!canViewRoles) {
-        return (
-            <div className="p-6">
-                <div className="bg-white rounded-card shadow-card p-12 text-center">
-                    <ShieldAlert className="w-16 h-16 text-red-500 mx-auto mb-4" />
-                    <h3 className="text-lg font-semibold text-gray-900 mb-2">Access Denied</h3>
-                    <p className="text-gray-600">
-                        You don't have permission to view roles. Please contact your administrator.
-                    </p>
-                </div>
-            </div>
-        );
-    }
-
     return (
-        <div className="p-2 md:p-6">
+        <div className="p-6">
             {/* Header */}
-            <div className="block md:flex items-center justify-between mb-6">
+            <div className="flex items-center justify-between mb-6">
                 <div>
                     <h1 className="text-2xl font-bold text-gray-900">Role Management</h1>
                     <p className="text-gray-600 mt-1">Create and manage user roles with custom permissions</p>
@@ -278,7 +212,7 @@ export default function Roles() {
                         <div className="flex items-start justify-between mb-4">
                             <div className="flex items-center gap-3">
                                 <div className={`w-12 h-12 rounded-lg flex items-center justify-center ${role.isStatic
-                                    ? 'bg-linear-to-br from-purple-500 to-pink-500'
+                                    ? 'bg-gradient-to-br from-purple-500 to-pink-500'
                                     : role.isSystem
                                         ? 'bg-blue-100'
                                         : 'bg-purple-100'
@@ -367,12 +301,57 @@ export default function Roles() {
                         >
                             <Input
                                 placeholder="e.g., teamlead"
+                                disabled={showEditModal}
                                 onChange={(e) => {
                                     form.setFieldsValue({
                                         name: e.target.value.toLowerCase().replace(/\s+/g, '')
                                     });
                                 }}
                             />
+                        </Form.Item>
+
+                        <Form.Item
+                            label={<span className="font-medium text-gray-700">Role Level</span>}
+                            name="level"
+                            rules={[
+                                { required: true, message: 'Please select a level' },
+                                {
+                                    validator: (_, value) => {
+                                        const userLevel = user?.role?.level || 0;
+                                        const userRoleName = user?.role?.name;
+
+                                        if (userRoleName === 'superadmin' || userLevel >= 5) {
+                                            if (value >= 5) {
+                                                return Promise.reject('Cannot create roles at Super Admin level (5) or above');
+                                            }
+                                        } else {
+                                            if (value >= userLevel) {
+                                                return Promise.reject(`You can only create roles below your level (${userLevel})`);
+                                            }
+                                        }
+                                        return Promise.resolve();
+                                    }
+                                }
+                            ]}
+                            help={
+                                user?.role?.name === 'superadmin' || (user?.role?.level || 0) >= 5
+                                    ? 'You can create roles from level 1 to 4'
+                                    : `You can create roles from level 1 to ${(user?.role?.level || 1) - 1}`
+                            }
+                        >
+                            <Select placeholder="Select level">
+                                {(() => {
+                                    const userLevel = user?.role?.level || 0;
+                                    const userRoleName = user?.role?.name;
+                                    const maxLevel = (userRoleName === 'superadmin' || userLevel >= 5) ? 4 : userLevel - 1;
+
+                                    return [1, 2, 3, 4].filter(level => level <= maxLevel).map(level => (
+                                        <Select.Option key={level} value={level}>
+                                            Level {level}
+                                        </Select.Option>
+                                    ));
+                                })()}
+                            </Select>
                         </Form.Item>
 
                         <Form.Item

@@ -15,7 +15,7 @@ export default function Modal({ isOpen, onClose, title, children }) {
             <div className="flex min-h-full items-center justify-center p-4">
                 <div className="relative bg-white rounded-2xl shadow-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
                     {/* Header */}
-                    <div className="sticky top-0 bg-white border-b border-gray-200 px-6 py-4 flex items-center justify-between rounded-t-2xl">
+                    <div className="sticky top-0 z-10 bg-white border-b border-gray-200 px-6 py-4 flex items-center justify-between rounded-t-2xl">
                         <h2 className="text-xl font-bold text-gray-900">{title}</h2>
                         <button
                             onClick={onClose}

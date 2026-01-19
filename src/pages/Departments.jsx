@@ -75,38 +75,50 @@ export default function Departments() {
         dept.description?.toLowerCase().includes(searchQuery.toLowerCase())
     );
 
-    // Check if user has permission - managers should NOT have access
+    // Get user role name
     const userRoleName = user?.role?.name || user?.role;
-    const isManager = userRoleName === 'manager';
 
-    if (!user?.permissions?.viewDepartments || isManager) {
+    // Check if user has permission to view departments
+    if (!user?.permissions?.viewDepartments) {
         return (
             <div className="flex items-center justify-center min-h-[60vh]">
                 <div className="text-center">
                     <div className="text-6xl mb-4">🔒</div>
                     <h2 className="text-2xl font-bold text-gray-900 mb-2">Access Denied</h2>
-                    <p className="text-gray-600">You don't have permission to manage departments.</p>
+                    <p className="text-gray-600">You don't have permission to view departments.</p>
                 </div>
             </div>
         );
     }
 
+    // Check role-based permissions combined with user permissions
+    const canCreateDepartment = user?.permissions?.createDepartments &&
+        ['superadmin', 'director', 'generalmanager'].includes(userRoleName);
+
+    const canEditDepartment = user?.permissions?.editDepartments &&
+        ['superadmin', 'director', 'generalmanager', 'manager'].includes(userRoleName);
+
+    const canDeleteDepartment = user?.permissions?.deleteDepartments &&
+        ['superadmin', 'director'].includes(userRoleName);
+
     return (
         <div>
             {/* Header */}
-            <div className="flex items-center justify-between mb-6">
+            <div className="block md:flex items-center justify-between mb-6">
                 <div>
                     <h1 className="text-2xl font-bold text-gray-900">Departments</h1>
                     <p className="text-gray-500 mt-1">Organize your team into departments</p>
                 </div>
-                <Button
-                    type="primary"
-                    onClick={() => setShowCreateModal(true)}
-                    className="bg-primary hover:bg-primary-600 flex items-center gap-2 h-auto py-2.5 px-6"
-                    icon={<Building2 className="w-5 h-5" />}
-                >
-                    Add Department
-                </Button>
+                {canCreateDepartment && (
+                    <Button
+                        type="primary"
+                        onClick={() => setShowCreateModal(true)}
+                        className="bg-primary hover:bg-primary-600 flex items-center gap-2 h-auto py-2.5 px-6"
+                        icon={<Building2 className="w-5 h-5" />}
+                    >
+                        Add Department
+                    </Button>
+                )}
             </div>
 
             {/* Search */}
@@ -139,7 +151,7 @@ export default function Departments() {
                     <p className="text-gray-600 mb-6">
                         {searchQuery ? 'Try adjusting your search' : 'Get started by creating your first department'}
                     </p>
-                    {!searchQuery && (
+                    {!searchQuery && canCreateDepartment && (
                         <Button
                             type="primary"
                             onClick={() => setShowCreateModal(true)}
@@ -185,13 +197,15 @@ export default function Departments() {
                             </div>
 
                             <div className="flex gap-2 pt-4 border-t border-gray-100">
-                                <Button
-                                    className="flex-1 flex items-center justify-center gap-2"
-                                    icon={<Edit className="w-4 h-4" />}
-                                >
-                                    Edit
-                                </Button>
-                                {user?.permissions?.deleteDepartments && (
+                                {canEditDepartment && (
+                                    <Button
+                                        className="flex-1 flex items-center justify-center gap-2"
+                                        icon={<Edit className="w-4 h-4" />}
+                                    >
+                                        Edit
+                                    </Button>
+                                )}
+                                {canDeleteDepartment && (
                                     <Button
                                         danger
                                         onClick={() => handleDelete(dept._id)}

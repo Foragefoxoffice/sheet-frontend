@@ -1,8 +1,10 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Form, Input, Button, Alert } from 'antd';
+import { Form, Input, Button, Alert, Space } from 'antd';
 import { Lock, Phone, Shield, ArrowRight } from 'lucide-react';
 import { useAuth } from '../hooks/useAuth';
+import TaskCard from '../components/common/TaskCard';
+import { TASK_STATUS } from '../utils/taskHelpers';
 
 export default function Login() {
     const navigate = useNavigate();
@@ -31,10 +33,29 @@ export default function Login() {
         }
     };
 
+    // Dummy task for showcase
+    // Dummy task for showcase
+    const showcaseTask = {
+        _id: 'showcase-task',
+        sno: 101,
+        task: 'Review Q4 Financial Reports',
+        priority: 'High',
+        status: TASK_STATUS.IN_PROGRESS,
+        assignedToName: 'Sarah Wilson',
+        createdBy: {
+            name: 'David Miller',
+            designation: 'Senior Manager'
+        },
+        dueDate: new Date(Date.now() + 86400000 * 2).toISOString(), // 2 days from now
+        approvalStatus: 'Pending',
+        notes: 'Please ensure all department numbers are consolidated.',
+        isSelfTask: false
+    };
+
     return (
         <div className="min-h-screen flex overflow-hidden">
-            {/* Left Column - Illustration */}
-            <div className="hidden lg:flex lg:w-1/2 relative bg-linear-to-br from-primary-600 via-primary-700 to-purple-900 overflow-hidden">
+            {/* Left Column - Task Showcase */}
+            <div className="hidden lg:flex lg:w-1/2 relative bg-linear-to-br from-primary-600 via-primary-700 to-purple-900 overflow-hidden items-center justify-center p-12">
                 {/* Animated Background Elements */}
                 <div className="absolute inset-0 opacity-20">
                     <div className="absolute top-20 left-20 w-72 h-72 bg-white rounded-full mix-blend-overlay filter blur-3xl animate-blob"></div>
@@ -45,10 +66,18 @@ export default function Login() {
                 {/* Grid Pattern Overlay */}
                 <div className="absolute inset-0 bg-grid-pattern opacity-10"></div>
 
-                {/* Centered Illustration */}
-                <div className="relative z-10 flex items-center justify-center w-full p-12">
-                    <div className="w-full max-w-2xl">
-                        {/* Illustration placeholder */}
+                {/* Showcase Card */}
+                <div className="relative z-10 w-full max-w-md transform rotate-3 hover:rotate-0 transition-transform duration-500">
+                    <div className="bg-white/10 backdrop-blur-sm p-4 rounded-xl border border-white/20 shadow-2xl">
+                        <TaskCard
+                            task={showcaseTask}
+                            showActions={true}
+                            canEdit={true}
+                            onStatusChange={() => { }}
+                            onView={() => { }}
+                            onEdit={() => { }}
+                            onDelete={() => { }}
+                        />
                     </div>
                 </div>
             </div>
@@ -60,21 +89,13 @@ export default function Login() {
                 <div className="absolute bottom-0 left-0 w-64 h-64 bg-purple-100 rounded-full mix-blend-multiply filter blur-3xl opacity-30 animate-blob animation-delay-2000"></div>
 
                 <div className="w-full max-w-md relative z-10">
-                    {/* Mobile Logo */}
-                    <div className="lg:hidden text-center mb-8">
-                        <div className="inline-flex items-center justify-center w-16 h-16 bg-linear-to-br from-primary-500 to-primary-700 rounded-2xl mb-4 shadow-lg">
-                            <svg className="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4" />
-                            </svg>
-                        </div>
-                        <h1 className="text-2xl font-bold text-gray-900">Task Manager</h1>
-                    </div>
 
                     {/* Login Card */}
                     <div className="bg-white/80 backdrop-blur-xl rounded-3xl shadow-2xl p-8 lg:p-10 border border-white/20">
                         {/* Header */}
-                        <div className="mb-8">
-                            <h2 className="text-3xl font-bold text-gray-900 mb-2">Welcome Back</h2>
+                        <div className="mb-8 text-center">
+                            <img src="/logo.png" alt="Logo" className="pb-6" />
+                            <h2 className="text-3xl font-bold text-gray-900 mb-2">Welcome </h2>
                             <p className="text-gray-600">Sign in to continue to your account</p>
                         </div>
 
@@ -103,20 +124,26 @@ export default function Login() {
                                     { pattern: /^\d+$/, message: 'Must contain only digits' }
                                 ]}
                             >
-                                <Input
-                                    addonBefore="+91"
-                                    placeholder="98765 43210"
-                                    maxLength={10}
-                                    prefix={<Phone className="w-4 h-4 text-gray-400" />}
-                                    className="py-2.5 rounded-lg"
-                                    onChange={(e) => {
-                                        // Ensure only digits 
-                                        const value = e.target.value.replace(/\D/g, '');
-                                        // Logic to update if needed, but Form handles value. 
-                                        // To enforce digits only in input display, we might need controlled component or formatter.
-                                        // Simplest is let pattern rule handle validation or use type="tel"
-                                    }}
-                                />
+                                <Space.Compact style={{ width: '100%' }}>
+                                    <Input
+                                        style={{ width: '60px' }}
+                                        value="+91"
+                                        disabled
+                                        className="text-center"
+                                    />
+                                    <Input
+                                        placeholder="98765 43210"
+                                        maxLength={10}
+                                        className="py-2.5 rounded-lg"
+                                        onChange={(e) => {
+                                            // Ensure only digits 
+                                            const value = e.target.value.replace(/\D/g, '');
+                                            // Logic to update if needed, but Form handles value. 
+                                            // To enforce digits only in input display, we might need controlled component or formatter.
+                                            // Simplest is let pattern rule handle validation or use type="tel"
+                                        }}
+                                    />
+                                </Space.Compact>
                             </Form.Item>
 
                             <Form.Item
@@ -131,6 +158,16 @@ export default function Login() {
                                 />
                             </Form.Item>
 
+                            {/* <div className="text-right mb-4">
+                                <Button
+                                    type="link"
+                                    onClick={() => navigate('/forgot-password')}
+                                    className="text-primary-600 hover:text-primary-700 p-0 h-auto font-medium"
+                                >
+                                    Forgot Password?
+                                </Button>
+                            </div> */}
+
                             <Form.Item>
                                 <Button
                                     type="primary"
@@ -143,24 +180,14 @@ export default function Login() {
                             </Form.Item>
                         </Form>
 
-                        {/* Footer */}
-                        <div className="mt-6 pt-6 border-t border-gray-200">
-                            <p className="text-center text-sm text-gray-600">
-                                Protected by enterprise-grade security
-                                <Shield className="inline-block w-4 h-4 ml-1 text-primary-600" />
-                            </p>
-                        </div>
+
                     </div>
 
-                    {/* Bottom Text */}
-                    <p className="text-center text-sm text-gray-500 mt-6">
-                        © 2025 VCGreen Task Manager. All rights reserved.
-                    </p>
                 </div>
             </div>
 
             {/* Custom Styles */}
-            <style jsx>{`
+            <style>{`
                 @keyframes blob {
                     0%, 100% { transform: translate(0, 0) scale(1); }
                     25% { transform: translate(20px, -20px) scale(1.1); }

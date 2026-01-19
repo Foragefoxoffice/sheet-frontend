@@ -14,18 +14,6 @@ export default function MobileMenu({ isOpen, onClose }) {
             permission: null,
         },
         {
-            path: '/assigned-tasks',
-            icon: CheckSquare,
-            label: 'I Assigned',
-            permission: null,
-        },
-        {
-            path: '/self-tasks',
-            icon: Users,
-            label: 'Self Tasks',
-            permission: null,
-        },
-        {
             path: '/reports',
             icon: BarChart3,
             label: 'Reports',

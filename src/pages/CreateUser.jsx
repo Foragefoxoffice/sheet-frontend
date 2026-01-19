@@ -1,9 +1,8 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { UserPlus, ArrowLeft } from 'lucide-react';
-import { Form, Input, Select, Button, Card, Alert } from 'antd';
+import { Form, Input, Select, Button, Card, Alert, Space } from 'antd';
 import { useAuth } from '../hooks/useAuth';
-import { ROLES } from '../utils/constants';
 import api from '../utils/api';
 import { showToast } from '../utils/helpers';
 
@@ -11,29 +10,38 @@ export default function CreateUser() {
     const { user } = useAuth();
     const navigate = useNavigate();
     const [loading, setLoading] = useState(false);
+    const [availableRoles, setAvailableRoles] = useState([]);
+    const [departments, setDepartments] = useState([]);
+    const [loadingRoles, setLoadingRoles] = useState(true);
     const [form] = Form.useForm();
 
-    // Determine available roles based on current user's role
-    const getAvailableRoles = () => {
-        if (user.role === ROLES.DIRECTOR) {
-            return [
-                { value: 'Director', label: 'Director' },
-                { value: 'GeneralManager', label: 'General Manager' },
-                { value: 'Manager', label: 'Manager' },
-                { value: 'Staff', label: 'Staff' },
-            ];
-        } else if (user.role === ROLES.GENERAL_MANAGER) {
-            return [
-                { value: 'Manager', label: 'Manager' },
-                { value: 'Staff', label: 'Staff' },
-            ];
-        } else if (user.role === ROLES.MANAGER) {
-            return [{ value: 'Staff', label: 'Staff' }];
+    useEffect(() => {
+        fetchAvailableRoles();
+        fetchDepartments();
+    }, []);
+
+    const fetchAvailableRoles = async () => {
+        try {
+            setLoadingRoles(true);
+            const response = await api.get('/users/available-roles');
+            setAvailableRoles(response.data.roles || []);
+        } catch (error) {
+            console.error('Error fetching available roles:', error);
+            showToast('Failed to load available roles', 'error');
+        } finally {
+            setLoadingRoles(false);
         }
-        return [];
     };
 
-    const availableRoles = getAvailableRoles();
+    const fetchDepartments = async () => {
+        try {
+            const response = await api.get('/departments');
+            setDepartments(response.data.departments || []);
+        } catch (error) {
+            console.error('Error fetching departments:', error);
+            showToast('Failed to load departments', 'error');
+        }
+    };
 
     const handleSubmit = async (values) => {
         setLoading(true);
@@ -78,6 +86,17 @@ export default function CreateUser() {
         );
     }
 
+    if (loadingRoles) {
+        return (
+            <div className="flex items-center justify-center min-h-[60vh]">
+                <div className="text-center">
+                    <div className="w-16 h-16 border-4 border-primary border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
+                    <p className="text-gray-600">Loading...</p>
+                </div>
+            </div>
+        );
+    }
+
     return (
         <div className="max-w-2xl mx-auto p-6">
             {/* Header */}
@@ -107,7 +126,6 @@ export default function CreateUser() {
                     form={form}
                     layout="vertical"
                     onFinish={handleSubmit}
-                    initialValues={{ role: 'Staff' }}
                     size="large"
                 >
                     {/* Name */}
@@ -117,6 +135,14 @@ export default function CreateUser() {
                         rules={[{ required: true, message: 'Please enter full name' }]}
                     >
                         <Input placeholder="Enter full name" />
+                    </Form.Item>
+
+                    {/* Designation */}
+                    <Form.Item
+                        label={<span className="font-medium text-gray-700">Designation</span>}
+                        name="designation"
+                    >
+                        <Input placeholder="Enter designation (e.g., Senior Developer)" />
                     </Form.Item>
 
                     {/* Email */}
@@ -141,15 +167,22 @@ export default function CreateUser() {
                         ]}
                         help="Enter 10-digit WhatsApp number (used for login)"
                     >
-                        <Input
-                            addonBefore="+91"
-                            placeholder="98765 43210"
-                            maxLength={10}
-                            onChange={(e) => {
-                                const value = e.target.value.replace(/\D/g, '');
-                                form.setFieldsValue({ whatsapp: value });
-                            }}
-                        />
+                        <Space.Compact style={{ width: '100%' }}>
+                            <Input
+                                style={{ width: '60px' }}
+                                value="+91"
+                                disabled
+                                className="text-center"
+                            />
+                            <Input
+                                placeholder="98765 43210"
+                                maxLength={10}
+                                onChange={(e) => {
+                                    const value = e.target.value.replace(/\D/g, '');
+                                    form.setFieldsValue({ whatsapp: value });
+                                }}
+                            />
+                        </Space.Compact>
                     </Form.Item>
 
                     {/* Password */}
@@ -170,70 +203,64 @@ export default function CreateUser() {
                         name="role"
                         rules={[{ required: true, message: 'Please select a role' }]}
                         help={
-                            user?.role?.level >= 4
-                                ? 'As a Director, you can create users with any role'
-                                : user?.role?.level >= 3
-                                    ? 'As a General Manager, you can create Managers and Staff'
-                                    : 'As a Manager, you can only create Staff users'
+                            availableRoles.length > 0
+                                ? `You can assign: ${availableRoles.map(r => r.displayName).join(', ')}`
+                                : 'You can only assign roles below your level'
                         }
                     >
-                        <Select>
+                        <Select placeholder="Select a role">
                             {availableRoles.map(role => (
-                                <Select.Option key={role.value} value={role.value}>
-                                    {role.label}
+                                <Select.Option key={role._id} value={role._id}>
+                                    {role.displayName}
                                 </Select.Option>
                             ))}
                         </Select>
                     </Form.Item>
 
-                    {/* Permission Info */}
-                    <Alert
-                        message="Role Permissions"
-                        description={
-                            <ul className="text-sm list-none pl-0 mt-1">
-                                <Form.Item shouldUpdate={(prev, curr) => prev.role !== curr.role} noStyle>
-                                    {({ getFieldValue }) => {
-                                        const role = getFieldValue('role');
-                                        return (
-                                            <>
-                                                {role === 'Director' && (
-                                                    <>
-                                                        <li>• Full system access and control</li>
-                                                        <li>• Can create and manage all users</li>
-                                                        <li>• Can view and manage all tasks and reports</li>
-                                                    </>
-                                                )}
-                                                {role === 'GeneralManager' && (
-                                                    <>
-                                                        <li>• Can create Managers and Staff</li>
-                                                        <li>• Can approve all tasks</li>
-                                                        <li>• Can view all tasks and reports</li>
-                                                    </>
-                                                )}
-                                                {role === 'Manager' && (
-                                                    <>
-                                                        <li>• Can create and manage Staff users</li>
-                                                        <li>• Can approve tasks assigned to Staff</li>
-                                                        <li>• Can view all tasks and reports</li>
-                                                    </>
-                                                )}
-                                                {role === 'Staff' && (
-                                                    <>
-                                                        <li>• Can create and manage own tasks</li>
-                                                        <li>• Can update task status</li>
-                                                        <li>• Can view assigned tasks</li>
-                                                    </>
-                                                )}
-                                            </>
-                                        );
-                                    }}
-                                </Form.Item>
-                            </ul>
-                        }
-                        type="info"
-                        showIcon
-                        className="mb-6"
-                    />
+                    {/* Department */}
+                    <Form.Item
+                        label={<span className="font-medium text-gray-700">Department *</span>}
+                        name="department"
+                        rules={[{ required: true, message: 'Please select a department' }]}
+                    >
+                        <Select placeholder="Select a department (required)">
+                            {departments.map(dept => (
+                                <Select.Option key={dept._id} value={dept._id}>
+                                    {dept.name}
+                                </Select.Option>
+                            ))}
+                        </Select>
+                    </Form.Item>
+
+                    {/* Permission Info - Dynamic based on selected role */}
+                    <Form.Item shouldUpdate={(prev, curr) => prev.role !== curr.role} noStyle>
+                        {({ getFieldValue }) => {
+                            const selectedRoleId = getFieldValue('role');
+                            const selectedRole = availableRoles.find(r => r._id === selectedRoleId);
+
+                            if (!selectedRole) return null;
+
+                            const permissions = selectedRole.permissions || {};
+                            const enabledPermissions = Object.entries(permissions)
+                                .filter(([_, value]) => value === true)
+                                .map(([key]) => key);
+
+                            return (
+                                <Alert
+                                    message="Role Permissions"
+                                    description={
+                                        <ul className="text-sm list-none pl-0 mt-1">
+                                            <li>• {selectedRole.description || 'No description available'}</li>
+                                            <li>• {enabledPermissions.length} permissions enabled</li>
+                                        </ul>
+                                    }
+                                    type="info"
+                                    showIcon
+                                    className="mb-6"
+                                />
+                            );
+                        }}
+                    </Form.Item>
 
                     {/* Buttons */}
                     <div className="flex gap-3">

@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { CheckCircle2, XCircle, FileCheck } from 'lucide-react';
+import { CheckCircle2, XCircle, FileCheck, ShieldAlert } from 'lucide-react';
 import { Input, Button } from 'antd';
 import { useAuth } from '../hooks/useAuth';
 import Modal from '../components/common/Modal';
@@ -16,9 +16,17 @@ export default function Approvals() {
     const [approvalAction, setApprovalAction] = useState(null);
     const [comments, setComments] = useState('');
 
+    // Check permissions
+    const canViewApprovals = user?.permissions?.viewApprovals;
+    const canApproveReject = user?.permissions?.approveRejectTasks;
+
     useEffect(() => {
-        fetchPendingApprovals();
-    }, []);
+        if (canViewApprovals) {
+            fetchPendingApprovals();
+        } else {
+            setLoading(false);
+        }
+    }, [canViewApprovals]);
 
     const fetchPendingApprovals = async () => {
         try {
@@ -38,7 +46,7 @@ export default function Approvals() {
         setShowApprovalModal(true);
     };
 
-    const submitApproval = async () => {
+    const handleSubmitApproval = async () => {
         if (!selectedTask || !approvalAction) return;
 
         try {
@@ -46,7 +54,12 @@ export default function Approvals() {
                 ? `/approvals/${selectedTask._id}/approve`
                 : `/approvals/${selectedTask._id}/reject`;
 
-            const response = await api.post(endpoint, { comments });
+            // Send 'comments' for approve, 'reason' for reject
+            const payload = approvalAction === 'approve'
+                ? { comments }
+                : { reason: comments };
+
+            const response = await api.post(endpoint, payload);
 
             if (response.data.success) {
                 showToast(`Task ${approvalAction}d successfully!`, 'success');
@@ -60,8 +73,23 @@ export default function Approvals() {
         }
     };
 
+    // Access Denied UI
+    if (!canViewApprovals) {
+        return (
+            <div className="p-6">
+                <div className="bg-white rounded-card shadow-card p-12 text-center">
+                    <ShieldAlert className="w-16 h-16 text-red-500 mx-auto mb-4" />
+                    <h3 className="text-lg font-semibold text-gray-900 mb-2">Access Denied</h3>
+                    <p className="text-gray-600">
+                        You don't have permission to view approvals. Please contact your administrator.
+                    </p>
+                </div>
+            </div>
+        );
+    }
+
     return (
-        <div className="p-6">
+        <div className="p-0 md:p-6">
             {/* Header */}
             <div className="mb-6">
                 <h1 className="text-2xl font-bold text-gray-900 mb-2">Approvals</h1>
@@ -119,24 +147,26 @@ export default function Approvals() {
                                     )}
                                 </div>
 
-                                <div className="flex gap-2 ml-4">
-                                    <Button
-                                        type="primary"
-                                        onClick={() => handleApprovalAction(task, 'approve')}
-                                        className="bg-green-600 hover:bg-green-500 border-none flex items-center gap-2 h-auto py-2"
-                                        icon={<CheckCircle2 className="w-4 h-4" />}
-                                    >
-                                        Approve
-                                    </Button>
-                                    <Button
-                                        danger
-                                        onClick={() => handleApprovalAction(task, 'reject')}
-                                        className="flex items-center gap-2 h-auto py-2"
-                                        icon={<XCircle className="w-4 h-4" />}
-                                    >
-                                        Reject
-                                    </Button>
-                                </div>
+                                {canApproveReject && (
+                                    <div className="flex gap-2 ml-4">
+                                        <Button
+                                            type="primary"
+                                            onClick={() => handleApprovalAction(task, 'approve')}
+                                            className="bg-green-600 hover:bg-green-500 border-none flex items-center gap-2 h-auto py-2"
+                                            icon={<CheckCircle2 className="w-4 h-4" />}
+                                        >
+                                            Approve
+                                        </Button>
+                                        <Button
+                                            danger
+                                            onClick={() => handleApprovalAction(task, 'reject')}
+                                            className="flex items-center gap-2 h-auto py-2"
+                                            icon={<XCircle className="w-4 h-4" />}
+                                        >
+                                            Reject
+                                        </Button>
+                                    </div>
+                                )}
                             </div>
                         </div>
                     ))}
@@ -183,7 +213,7 @@ export default function Approvals() {
                             <Button
                                 type="primary"
                                 size="large"
-                                onClick={submitApproval}
+                                onClick={handleSubmitApproval}
                                 className={`flex-1 ${approvalAction === 'approve'
                                     ? 'bg-green-600 hover:bg-green-500'
                                     : 'bg-red-600 hover:bg-red-500'
