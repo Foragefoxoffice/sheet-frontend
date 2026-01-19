@@ -30,7 +30,7 @@ export default function EditUserForm({ user: userToEdit, onSuccess, onCancel, de
             form.setFieldsValue({
                 name: userToEdit.name,
                 email: userToEdit.email,
-                whatsapp: userToEdit.whatsapp?.replace('91', ''),
+                whatsapp: userToEdit.whatsapp?.startsWith('91') ? userToEdit.whatsapp.slice(2) : userToEdit.whatsapp,
                 role: roleId,
                 department: departmentId,
                 designation: userToEdit.designation || '',
@@ -127,14 +127,13 @@ export default function EditUserForm({ user: userToEdit, onSuccess, onCancel, de
             </Form.Item>
 
             <Form.Item
-                label={<span className="font-medium text-gray-700">Email Address</span>}
+                label={<span className="font-medium text-gray-700">Email Address (Optional, can be shared)</span>}
                 name="email"
                 rules={[
-                    { required: true, message: 'Please enter email' },
                     { type: 'email', message: 'Please enter a valid email' }
                 ]}
             >
-                <Input placeholder="user@company.com" size="large" />
+                <Input placeholder="user@company.com (optional)" size="large" />
             </Form.Item>
 
             <Form.Item
@@ -158,6 +157,7 @@ export default function EditUserForm({ user: userToEdit, onSuccess, onCancel, de
                         placeholder="98765 43210"
                         maxLength={10}
                         size="large"
+                        value={form.getFieldValue('whatsapp')}
                         onChange={(e) => {
                             const value = e.target.value.replace(/\D/g, '').substring(0, 10);
                             form.setFieldsValue({ whatsapp: value });

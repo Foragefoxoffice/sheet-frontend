@@ -165,7 +165,7 @@ export default function Users() {
     const filteredUsers = users.filter(u => {
         const matchesTab = activeTab === 'all' || u.role?.name === activeTab;
         const matchesSearch = u.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-            u.email.toLowerCase().includes(searchQuery.toLowerCase());
+            (u.email && u.email.toLowerCase().includes(searchQuery.toLowerCase()));
 
         // Handle department filter - department can be an object or string ID
         const userDeptId = typeof u.department === 'object' ? u.department?._id : u.department;
@@ -282,22 +282,26 @@ export default function Users() {
                                     {member.name.charAt(0).toUpperCase()}
                                 </div>
                                 <div className="flex items-center gap-2">
-                                <span className={`px-3 py-1 rounded-full text-xs font-medium ${getDesignationColor(member.designation)}`}>
-                                    {member.designation}
-                                </span>
-                                <span className={`px-3 py-1 rounded-full text-xs font-medium ${getRoleBadgeColor(member.role)}`}>
-                                    {member.role?.displayName || member.role}
-                                </span>
+                                    {member.designation && (
+                                        <span className={`px-3 py-1 rounded-full text-xs font-medium ${getDesignationColor(member.designation)}`}>
+                                            {member.designation}
+                                        </span>
+                                    )}
+                                    <span className={`px-3 py-1 rounded-full text-xs font-medium ${getRoleBadgeColor(member.role)}`}>
+                                        {member.role?.displayName || member.role}
+                                    </span>
                                 </div>
                             </div>
 
                             <h3 className="text-lg font-semibold text-gray-900 mb-1">{member.name}</h3>
 
                             <div className="space-y-2 mb-4">
-                                <div className="flex items-center gap-2 text-sm text-gray-600">
-                                    <Mail className="w-4 h-4" />
-                                    <span className="truncate">{member.email}</span>
-                                </div>
+                                {member.email && (
+                                    <div className="flex items-center gap-2 text-sm text-gray-600">
+                                        <Mail className="w-4 h-4" />
+                                        <span className="truncate">{member.email}</span>
+                                    </div>
+                                )}
                                 <div className="flex items-center gap-2 text-sm text-gray-600">
                                     <Phone className="w-4 h-4" />
                                     <span>+{member.whatsapp}</span>

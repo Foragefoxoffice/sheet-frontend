@@ -27,7 +27,10 @@ export default function CreateUserForm({ onSuccess, onCancel, departments = [] }
             // Set default role to the lowest level available
             if (roles.length > 0) {
                 const defaultRole = roles[roles.length - 1];
-                form.setFieldsValue({ role: defaultRole._id });
+                // Use setTimeout to ensure form is mounted before setting values
+                setTimeout(() => {
+                    form.setFieldsValue({ role: defaultRole._id });
+                }, 0);
                 updateDepartmentRequirement(defaultRole._id, roles);
             }
         } catch (error) {
@@ -126,14 +129,13 @@ export default function CreateUserForm({ onSuccess, onCancel, departments = [] }
             </Form.Item>
 
             <Form.Item
-                label={<span className="font-medium text-gray-700">Email Address</span>}
+                label={<span className="font-medium text-gray-700">Email Address (Optional, can be shared)</span>}
                 name="email"
                 rules={[
-                    { required: true, message: 'Please enter email' },
                     { type: 'email', message: 'Please enter a valid email' }
                 ]}
             >
-                <Input placeholder="user@company.com" size="large" />
+                <Input placeholder="user@company.com (optional)" size="large" />
             </Form.Item>
 
             <Form.Item
