@@ -112,17 +112,55 @@ export default function Reports() {
         return csvRows.join('\n');
     };
 
+    const calculatePendingDuration = (createdAt, status) => {
+        if (status === 'Completed') return 'Completed';
+
+        const created = new Date(createdAt);
+        const now = new Date();
+        const diffMs = now - created;
+
+        const days = Math.floor(diffMs / (1000 * 60 * 60 * 24));
+        const hours = Math.floor((diffMs % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+
+        if (days > 0) {
+            return `${days} day${days > 1 ? 's' : ''} ${hours} hour${hours !== 1 ? 's' : ''}`;
+        }
+        return `${hours} hour${hours !== 1 ? 's' : ''}`;
+    };
+
+    const formatDateTime = (date) => {
+        if (!date) return 'N/A';
+        const d = new Date(date);
+        return d.toLocaleString('en-IN', {
+            day: '2-digit',
+            month: '2-digit',
+            year: 'numeric',
+            hour: '2-digit',
+            minute: '2-digit',
+            hour12: true
+        });
+    };
+
     const downloadTasksReport = () => {
         const tasksData = reportData.tasks.map(task => ({
-            'Task ID': task.sno,
-            'Task Description': task.task,
-            'Assigned To': task.assignedToName,
-            'Created By': task.createdByEmail,
+            'S. No': task.sno,
+            'Date Raised': formatDateTime(task.createdAt),
+            'Raised By (Name)': task.createdBy?.name || task.createdByEmail || 'N/A',
+            'Raised By Department': task.createdBy?.department?.name || 'N/A',
+            'Raised By Email': task.createdByEmail || 'N/A',
+            'Raised By WhatsApp': task.createdBy?.whatsapp || 'N/A',
+            'Task Title / Description': task.task,
+            'Assigned To (Name)': task.assignedToName || 'N/A',
+            'Assigned To Department': task.assignedTo?.department?.name || task.department?.name || 'N/A',
+            'Assigned To Email': task.assignedToEmail || 'N/A',
+            'Assigned To WhatsApp': task.assignedTo?.whatsapp || 'N/A',
             'Priority': task.priority,
+            'Target Completion Date and Time': formatDateTime(task.dueDate),
             'Status': task.status,
-            'Due Date': formatDate(task.dueDate),
-            'Created At': formatDate(task.createdAt),
-            'Notes': task.notes || 'N/A',
+            'Pending Duration': calculatePendingDuration(task.createdAt, task.status),
+            'Approval Status': task.approvalStatus || 'N/A',
+            'Approval by': task.approvedBy?.name || task.approvedByEmail || 'N/A',
+            'Notes / Comments': task.notes || 'N/A',
         }));
 
         downloadCSV(tasksData, `tasks-report-${dateRange[0].format('YYYY-MM-DD')}-to-${dateRange[1].format('YYYY-MM-DD')}.csv`);

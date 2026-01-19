@@ -51,7 +51,6 @@ export default function Roles() {
         'I Assigned Tab Filters': ['filterIAssignedDepartment', 'filterIAssignedPriority', 'filterIAssignedRole', 'filterIAssignedUser'],
         'Self Tasks Tab Filters': ['filterSelfTasksDepartment', 'filterSelfTasksPriority', 'filterSelfTasksRole', 'filterSelfTasksUser'],
         'Approvals': ['viewApprovals', 'approveRejectTasks'],
-        'Approvals': ['viewApprovals', 'approveRejectTasks'],
         'Reports': ['viewReports', 'downloadReports'],
         'Role Management': ['viewRoles', 'createRoles', 'editRoles', 'deleteRoles'],
     };
