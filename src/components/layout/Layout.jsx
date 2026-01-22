@@ -48,7 +48,7 @@ export default function Layout({ children }) {
                     </div>
 
                     {/* Page Content */}
-                    <div className="p-4 md:p-8 pb-20 md:pb-8">
+                    <div className="m-3 md:m-6 md:p-8 pb-20 md:pb-8">
                         {children}
                     </div>
                 </main>

@@ -1,10 +1,11 @@
 import { useState, useEffect } from 'react';
-import { Plus, Edit2, Trash2, Shield, Search as SearchIcon, ShieldAlert } from 'lucide-react';
-import { Input, Button, Modal as AntModal, Form, Checkbox, Card, Select } from 'antd';
+import { Plus, Edit2, Trash2, Shield, Search as SearchIcon, ShieldAlert, LayoutGrid, CheckCircle2, Lock } from 'lucide-react';
+import { Input, Button, Modal as AntModal, Form, Checkbox } from 'antd';
 import { useAuth } from '../hooks/useAuth';
 import Modal from '../components/common/Modal';
 import api from '../utils/api';
 import { showToast } from '../utils/helpers';
+import StatCard from '../components/common/StatCard';
 
 export default function Roles() {
     const { user } = useAuth();
@@ -42,7 +43,6 @@ export default function Roles() {
 
     const permissionCategories = {
         'User Management': ['viewUsers', 'createUsers', 'editUsers', 'deleteUsers'],
-        'Department Management': ['viewDepartments', 'createDepartments', 'editDepartments', 'deleteDepartments'],
         'Department Management': ['viewDepartments', 'createDepartments', 'editDepartments', 'deleteDepartments'],
         'Task Management': ['viewAllTasks', 'viewDepartmentTasks', 'viewAssignedToMeTasks', 'viewIAssignedTasks', 'viewSelfTasks', 'createTasks', 'editOwnTasks', 'editAllTasks', 'deleteOwnTasks', 'deleteAllTasks'],
         'All Tasks Tab Filters': ['filterAllTasksDepartment', 'filterAllTasksPriority', 'filterAllTasksRole', 'filterAllTasksUser'],
@@ -213,6 +213,11 @@ export default function Roles() {
         return Object.values(permissions || {}).filter(Boolean).length;
     };
 
+    // Calculate stats
+    const totalRoles = roles.length;
+    const systemRoles = roles.filter(r => r.isSystem).length;
+    const customRoles = sortedRoles => totalRoles - systemRoles;
+
     if (loading) {
         return (
             <div className="flex items-center justify-center min-h-screen">
@@ -228,7 +233,7 @@ export default function Roles() {
     if (!canViewRoles) {
         return (
             <div className="p-6">
-                <div className="bg-white rounded-card shadow-card p-12 text-center">
+                <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-12 text-center">
                     <ShieldAlert className="w-16 h-16 text-red-500 mx-auto mb-4" />
                     <h3 className="text-lg font-semibold text-gray-900 mb-2">Access Denied</h3>
                     <p className="text-gray-600">
@@ -240,18 +245,18 @@ export default function Roles() {
     }
 
     return (
-        <div className="p-2 md:p-6">
+        <div className="space-y-6">
             {/* Header */}
-            <div className="block md:flex items-center justify-between mb-6">
+            <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4 bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
                 <div>
-                    <h1 className="text-2xl font-bold text-gray-900">Role Management</h1>
-                    <p className="text-gray-600 mt-1">Create and manage user roles with custom permissions</p>
+                    <h1 className="text-3xl font-extrabold text-[#253094]">Role Management</h1>
+                    <p className="text-gray-500 mt-1 font-medium">Create and manage user roles with custom permissions</p>
                 </div>
                 {user?.permissions?.createRoles && (
                     <Button
                         type="primary"
                         onClick={handleCreateRole}
-                        className="bg-primary hover:bg-primary-600 flex items-center gap-2 h-auto py-2.5 px-6"
+                        className="bg-primary hover:bg-primary-600 flex items-center justify-center gap-2 h-11 px-6 w-full md:w-auto rounded-xl font-bold shadow-lg shadow-primary/20 hover:shadow-primary/30 transition-all hover:-translate-y-0.5"
                         icon={<Plus className="w-5 h-5" />}
                     >
                         Create Role
@@ -259,80 +264,124 @@ export default function Roles() {
                 )}
             </div>
 
-            {/* Search */}
-            <div className="bg-white rounded-card shadow-card p-4 mb-6">
-                <Input
-                    prefix={<SearchIcon className="w-5 h-5 text-gray-400" />}
-                    placeholder="Search roles..."
-                    value={searchTerm}
-                    onChange={(e) => setSearchTerm(e.target.value)}
-                    size="large"
+            {/* Stats Cards */}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                <StatCard
+                    title="Total Roles"
+                    value={totalRoles.toString()}
+                    subtitle="Active system roles"
+                    icon={Shield}
+                    iconBg="bg-blue-50"
+                    iconColor="text-[#253094]"
                 />
+                <StatCard
+                    title="System Roles"
+                    value={systemRoles.toString()}
+                    subtitle="Pre-defined roles"
+                    icon={Lock}
+                    iconBg="bg-purple-50"
+                    iconColor="text-purple-600"
+                />
+                <StatCard
+                    title="Custom Roles"
+                    value={(totalRoles - systemRoles).toString()}
+                    subtitle="User created roles"
+                    icon={CheckCircle2}
+                    iconBg="bg-green-50"
+                    iconColor="text-[#2D9E36]"
+                />
+            </div>
+
+            {/* Search */}
+            <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
+                <div className="relative group">
+                    <SearchIcon className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400 group-hover:text-[#253094] transition-colors" />
+                    <input
+                        type="text"
+                        placeholder="Search roles..."
+                        value={searchTerm}
+                        onChange={(e) => setSearchTerm(e.target.value)}
+                        className="w-full h-12 pl-12 pr-4 bg-gray-50 border-none rounded-xl text-gray-700 placeholder-gray-400 focus:ring-2 focus:ring-[#253094]/10 transition-all outline-none"
+                    />
+                </div>
             </div>
 
             {/* Roles Grid */}
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                 {filteredRoles.map((role) => (
-                    <div key={role._id} className="bg-white rounded-card shadow-card p-6">
-                        <div className="flex items-start justify-between mb-4">
-                            <div className="flex items-center gap-3">
-                                <div className={`w-12 h-12 rounded-lg flex items-center justify-center ${role.isStatic
-                                    ? 'bg-linear-to-br from-purple-500 to-pink-500'
+                    <div key={role._id} className="group bg-white rounded-2xl p-6 shadow-sm border border-gray-100 hover:shadow-xl hover:border-primary-100 transition-all duration-300 relative overflow-hidden flex flex-col h-full">
+
+                        <div className="flex items-start justify-between mb-6">
+                            <div className="flex items-center gap-4">
+                                <div className={`w-14 h-14 rounded-2xl flex items-center justify-center transform transition-transform duration-300 shadow-sm ${role.isStatic
+                                    ? 'bg-linear-to-br from-purple-500 to-pink-500 text-white shadow-purple-200'
                                     : role.isSystem
-                                        ? 'bg-blue-100'
-                                        : 'bg-purple-100'
+                                        ? 'bg-blue-50 text-blue-600'
+                                        : 'bg-purple-50 text-purple-600'
                                     }`}>
-                                    <Shield className={`w-6 h-6 ${role.isStatic
-                                        ? 'text-white'
-                                        : role.isSystem
-                                            ? 'text-blue-600'
-                                            : 'text-purple-600'
-                                        }`} />
+                                    <Shield className="w-7 h-7" />
                                 </div>
                                 <div>
-                                    <h3 className="font-semibold text-gray-900">{role.displayName}</h3>
+                                    <h3 className="font-bold text-lg text-gray-900 group-hover:text-[#253094] transition-colors">{role.displayName}</h3>
                                     {role.isStatic && (
-                                        <span className="text-xs text-purple-600 font-medium">Static Role - Protected</span>
+                                        <div className="flex items-center gap-1 mt-1">
+                                            <Lock className="w-3 h-3 text-purple-500" />
+                                            <span className="text-xs text-purple-600 font-medium">Protected Role</span>
+                                        </div>
                                     )}
                                     {role.isSystem && !role.isStatic && (
-                                        <span className="text-xs text-blue-600 font-medium">System Role</span>
+                                        <span className="text-xs text-blue-600 font-medium bg-blue-50 px-2 py-0.5 rounded-full">System Role</span>
                                     )}
                                 </div>
                             </div>
+                        </div>
+
+                        <div className="flex-1 mb-0">
+                            <p className="text-gray-500 text-sm leading-relaxed line-clamp-3">
+                                {role.description || 'No description provided for this role.'}
+                            </p>
+                        </div>
+
+                        <div className="mt-auto">
+                            <div className="flex items-center justify-between py-4 border-t border-gray-100 mb-4">
+                                <span className="text-sm font-medium text-gray-500">Permissions</span>
+                                <span className="px-3 py-1 rounded-full text-xs font-bold bg-[#E8F8EE] text-[#2D9E36] border border-green-100">
+                                    {countPermissions(role.permissions)} enabled
+                                </span>
+                            </div>
+
                             {!role.isStatic && user?.permissions?.editRoles && (
-                                <div className="flex gap-2">
+                                <div className="flex gap-3">
                                     <Button
                                         onClick={() => handleEditRole(role)}
-                                        className="flex items-center justify-center"
+                                        className="flex-1 h-10 flex items-center justify-center gap-2 border-primary text-primary hover:bg-primary-50 rounded-xl font-semibold"
                                         icon={<Edit2 className="w-4 h-4" />}
-                                    />
+                                    >
+                                        Edit
+                                    </Button>
                                     {user?.permissions?.deleteRoles && (
                                         <Button
                                             danger
                                             onClick={() => handleDeleteRole(role._id, role.displayName)}
+                                            className="h-10 px-4 rounded-xl hover:bg-red-50"
                                             icon={<Trash2 className="w-4 h-4" />}
                                         />
                                     )}
                                 </div>
                             )}
-                        </div>
-
-                        <p className="text-sm text-gray-600 mb-4">
-                            {role.description || 'No description'}
-                        </p>
-
-                        <div className="flex items-center justify-between pt-4 border-t border-gray-200">
-                            <span className="text-sm text-gray-600">Permissions</span>
-                            <span className="text-sm font-medium text-primary">
-                                {countPermissions(role.permissions)} enabled
-                            </span>
+                            {/* Placeholder for alignment if no actions */}
+                            {(role.isStatic || (!user?.permissions?.editRoles)) && (
+                                <div className="h-10 flex items-center justify-center text-xs text-gray-400 italic">
+                                    Read Only
+                                </div>
+                            )}
                         </div>
                     </div>
                 ))}
             </div>
 
             {filteredRoles.length === 0 && (
-                <div className="bg-white rounded-card shadow-card p-12 text-center">
+                <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-12 text-center">
                     <Shield className="w-16 h-16 text-gray-400 mx-auto mb-4" />
                     <h3 className="text-lg font-semibold text-gray-900 mb-2">No roles found</h3>
                     <p className="text-gray-600">
@@ -392,7 +441,7 @@ export default function Roles() {
 
                     <div>
                         <h3 className="text-lg font-semibold text-gray-900 mb-4">Permissions</h3>
-                        <div className="space-y-4 max-h-96 overflow-y-auto pr-2">
+                        <div className="space-y-4 max-h-96 overflow-y-auto pr-2 custom-scrollbar">
                             {Object.entries(permissionCategories).map(([category, permissions]) => (
                                 <div key={category} className="border border-gray-200 rounded-lg p-4">
                                     <div className="flex items-center justify-between mb-3">
@@ -441,7 +490,7 @@ export default function Roles() {
                         <p className="text-sm text-gray-600 mb-4">
                             Select which roles this role can assign to users
                         </p>
-                        <div className="border border-gray-200 rounded-lg p-4 max-h-60 overflow-y-auto">
+                        <div className="border border-gray-200 rounded-lg p-4 max-h-60 overflow-y-auto custom-scrollbar">
                             {roles
                                 .filter(r => r._id !== selectedRole?._id && r.name !== 'superadmin')
                                 .map(role => (
@@ -467,7 +516,7 @@ export default function Roles() {
 
                     <div className="flex gap-3 pt-4 border-t border-gray-200 mt-4">
                         <Button
-                            className="flex-1"
+                            className="flex-1 h-11 rounded-xl cancel-btn"
                             onClick={() => {
                                 setShowCreateModal(false);
                                 setShowEditModal(false);
@@ -478,7 +527,7 @@ export default function Roles() {
                         <Button
                             type="primary"
                             htmlType="submit"
-                            className="flex-1 bg-primary text-white hover:bg-primary-600"
+                            className="flex-1 bg-primary hover:bg-primary-600 h-11 rounded-xl font-semibold text-white"
                         >
                             {showEditModal ? 'Update Role' : 'Create Role'}
                         </Button>

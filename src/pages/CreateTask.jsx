@@ -74,15 +74,32 @@ export default function CreateTask() {
             const diffMs = dueDate - now;
             const diffHours = Math.ceil(diffMs / (1000 * 60 * 60));
 
+            // Resolve emails from IDs
+            let finalAssignedToEmail = values.assignedToEmail;
+            if (!isSelfTask) {
+                const assignedUser = users.find(u => u._id === values.assignedToEmail);
+                if (assignedUser) {
+                    finalAssignedToEmail = assignedUser.email;
+                }
+            }
+
+            let finalTaskGivenBy = values.taskGivenBy;
+            if (values.taskGivenBy) {
+                const giverUser = users.find(u => u._id === values.taskGivenBy);
+                if (giverUser) {
+                    finalTaskGivenBy = giverUser.email;
+                }
+            }
+
             const requestData = {
                 task: values.task,
-                assignedToEmail: values.assignedToEmail,
+                assignedToEmail: finalAssignedToEmail,
                 priority: values.priority,
                 durationType: 'hours',
                 durationValue: diffHours,
                 notes: values.notes,
                 isSelfTask: isSelfTask,
-                taskGivenBy: values.taskGivenBy,
+                taskGivenBy: finalTaskGivenBy,
             };
 
             const response = await api.post('/tasks', requestData);
@@ -149,7 +166,7 @@ export default function CreateTask() {
                                 optionFilterProp="children"
                             >
                                 {users.map(u => (
-                                    <Select.Option key={u._id} value={u.email}>
+                                    <Select.Option key={u._id} value={u._id}>
                                         {u.name} ({u.designation || u.role?.displayName})
                                     </Select.Option>
                                 ))}
@@ -191,7 +208,7 @@ export default function CreateTask() {
                                     {users
                                         .filter(u => u.email !== user.email)
                                         .map(u => (
-                                            <Select.Option key={u._id} value={u.email}>
+                                            <Select.Option key={u._id} value={u._id}>
                                                 {u.name} ({u.designation || u.role?.displayName})
                                             </Select.Option>
                                         ))}

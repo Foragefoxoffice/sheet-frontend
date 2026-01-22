@@ -1,9 +1,10 @@
 import { useState, useEffect } from 'react';
-import { Building2, UserPlus, Users, Edit, Trash2, Search as SearchIcon } from 'lucide-react';
+import { Building2, UserPlus, Users, Edit, Trash2, Search as SearchIcon, LayoutGrid, CheckCircle2 } from 'lucide-react';
 import { Input, Button, Modal as AntModal } from 'antd';
 import { useAuth } from '../hooks/useAuth';
-import Modal from '../components/common/Modal'; // Keeping the custom Modal for forms as pattern
+import Modal from '../components/common/Modal';
 import CreateDepartmentForm from '../components/features/departments/CreateDepartmentForm';
+import StatCard from '../components/common/StatCard';
 import api from '../utils/api';
 import { showToast } from '../utils/helpers';
 
@@ -75,6 +76,11 @@ export default function Departments() {
         dept.description?.toLowerCase().includes(searchQuery.toLowerCase())
     );
 
+    // Calculate Stats
+    const totalDepartments = departments.length;
+    const totalMembers = departments.reduce((acc, dept) => acc + (dept.memberCount || 0), 0);
+    const activeDepartments = departments.filter(d => d.isActive).length;
+
     // Get user role name
     const userRoleName = user?.role?.name || user?.role;
 
@@ -102,18 +108,18 @@ export default function Departments() {
         ['superadmin', 'director'].includes(userRoleName);
 
     return (
-        <div>
+        <div className="space-y-6">
             {/* Header */}
-            <div className="block md:flex items-center justify-between mb-6">
+            <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4 bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
                 <div>
-                    <h1 className="text-2xl font-bold text-gray-900">Departments</h1>
-                    <p className="text-gray-500 mt-1">Organize your team into departments</p>
+                    <h1 className="text-2xl md:text-3xl font-extrabold text-[#253094]">Departments</h1>
+                    <p className="text-gray-500 mt-1 font-medium">Organize and manage your team structures</p>
                 </div>
                 {canCreateDepartment && (
                     <Button
                         type="primary"
                         onClick={() => setShowCreateModal(true)}
-                        className="bg-primary hover:bg-primary-600 flex items-center gap-2 h-auto py-2.5 px-6"
+                        className="bg-primary hover:bg-primary-600 flex items-center justify-center gap-2 h-11 px-6 w-full md:w-auto rounded-xl font-bold shadow-lg shadow-primary/20 hover:shadow-primary/30 transition-all hover:-translate-y-0.5"
                         icon={<Building2 className="w-5 h-5" />}
                     >
                         Add Department
@@ -121,15 +127,46 @@ export default function Departments() {
                 )}
             </div>
 
-            {/* Search */}
-            <div className="bg-white rounded-card shadow-card mb-6 p-4">
-                <Input
-                    prefix={<SearchIcon className="w-5 h-5 text-gray-400" />}
-                    placeholder="Search departments..."
-                    value={searchQuery}
-                    onChange={(e) => setSearchQuery(e.target.value)}
-                    size="large"
+            {/* Stats Cards */}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                <StatCard
+                    title="Total Departments"
+                    value={totalDepartments.toString()}
+                    subtitle="All active units"
+                    icon={LayoutGrid}
+                    iconBg="bg-blue-50"
+                    iconColor="text-[#253094]"
                 />
+                <StatCard
+                    title="Total Members"
+                    value={totalMembers.toString()}
+                    subtitle="Assigned to departments"
+                    icon={Users}
+                    iconBg="bg-green-50"
+                    iconColor="text-[#2D9E36]"
+                />
+                <StatCard
+                    title="Active Units"
+                    value={activeDepartments.toString()}
+                    subtitle="Currently operational"
+                    icon={CheckCircle2}
+                    iconBg="bg-purple-50"
+                    iconColor="text-purple-600"
+                />
+            </div>
+
+            {/* Search Section */}
+            <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
+                <div className="relative group">
+                    <SearchIcon className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400 group-hover:text-[#253094] transition-colors" />
+                    <input
+                        type="text"
+                        placeholder="Search departments by name or description..."
+                        value={searchQuery}
+                        onChange={(e) => setSearchQuery(e.target.value)}
+                        className="w-full h-12 pl-12 pr-4 bg-gray-50 border-none rounded-xl text-gray-700 placeholder-gray-400 focus:ring-2 focus:ring-[#253094]/10 transition-all outline-none"
+                    />
+                </div>
             </div>
 
             {/* Content */}
@@ -141,21 +178,21 @@ export default function Departments() {
                     </div>
                 </div>
             ) : filteredDepartments.length === 0 ? (
-                <div className="bg-white rounded-card shadow-card p-12 text-center">
-                    <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                        <Building2 className="w-8 h-8 text-gray-400" />
+                <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-12 text-center">
+                    <div className="w-20 h-20 bg-gray-50 rounded-full flex items-center justify-center mx-auto mb-6">
+                        <Building2 className="w-10 h-10 text-gray-400" />
                     </div>
-                    <h3 className="text-lg font-semibold text-gray-900 mb-2">
+                    <h3 className="text-xl font-bold text-gray-900 mb-2">
                         {searchQuery ? 'No departments found' : 'No departments yet'}
                     </h3>
-                    <p className="text-gray-600 mb-6">
-                        {searchQuery ? 'Try adjusting your search' : 'Get started by creating your first department'}
+                    <p className="text-gray-500 mb-8 max-w-sm mx-auto">
+                        {searchQuery ? 'Try adjusting your search terms to find what you are looking for.' : 'Get started by creating your first department to organize your team.'}
                     </p>
                     {!searchQuery && canCreateDepartment && (
                         <Button
                             type="primary"
                             onClick={() => setShowCreateModal(true)}
-                            className="bg-primary hover:bg-primary-600 h-auto py-2.5 px-6"
+                            className="bg-primary hover:bg-primary-600 h-11 px-8 rounded-xl font-semibold"
                             icon={<Building2 className="w-5 h-5" />}
                         >
                             Create First Department
@@ -165,53 +202,74 @@ export default function Departments() {
             ) : (
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                     {filteredDepartments.map((dept) => (
-                        <div key={dept._id} className="bg-white rounded-card shadow-card p-6 hover:shadow-card-hover transition-shadow">
-                            <div className="flex items-start justify-between mb-4">
-                                <div className="w-12 h-12 bg-primary-50 rounded-lg flex items-center justify-center">
-                                    <Building2 className="w-6 h-6 text-primary" />
-                                </div>
-                                {dept.isActive && (
-                                    <span className="px-3 py-1 rounded-full text-xs font-medium bg-success-100 text-success-700">
-                                        Active
-                                    </span>
-                                )}
-                            </div>
+                        <div key={dept._id} className="group bg-white rounded-2xl p-6 shadow-sm border border-gray-100 hover:shadow-xl hover:border-primary-100 transition-all duration-300 relative overflow-hidden">
+                            {/* Decorative Background */}
+                            <div className="absolute top-0 right-0 w-32 h-32 bg-gradient-to-br from-primary-50 to-transparent opacity-0 group-hover:opacity-100 rounded-bl-full transition-all duration-500 -mr-8 -mt-8 pointer-events-none"></div>
 
-                            <h3 className="text-lg font-semibold text-gray-900 mb-2">{dept.name}</h3>
-
-                            {dept.description && (
-                                <p className="text-sm text-gray-600 mb-4 line-clamp-2">{dept.description}</p>
-                            )}
-
-                            <div className="space-y-2 mb-4">
-                                {dept.manager && (
-                                    <div className="flex items-center gap-2 text-sm text-gray-600">
-                                        <UserPlus className="w-4 h-4" />
-                                        <span>Manager: {dept.manager.name}</span>
+                            <div className="relative z-10">
+                                <div className="flex items-start justify-between mb-4">
+                                    <div className="w-14 h-14 bg-[#253094] rounded-2xl flex items-center justify-center shadow-lg shadow-blue-900/20 transform transition-transform duration-300">
+                                        <Building2 className="w-7 h-7 text-white" />
                                     </div>
-                                )}
-                                <div className="flex items-center gap-2 text-sm text-gray-600">
-                                    <Users className="w-4 h-4" />
-                                    <span>{dept.memberCount || 0} members</span>
+                                    {dept.isActive && (
+                                        <span className="px-3 py-1 rounded-full text-xs font-bold bg-[#E8F8EE] text-[#2D9E36] border border-green-100">
+                                            Active
+                                        </span>
+                                    )}
                                 </div>
-                            </div>
 
-                            <div className="flex gap-2 pt-4 border-t border-gray-100">
-                                {canEditDepartment && (
-                                    <Button
-                                        className="flex-1 flex items-center justify-center gap-2"
-                                        icon={<Edit className="w-4 h-4" />}
-                                    >
-                                        Edit
-                                    </Button>
-                                )}
-                                {canDeleteDepartment && (
-                                    <Button
-                                        danger
-                                        onClick={() => handleDelete(dept._id)}
-                                        icon={<Trash2 className="w-4 h-4" />}
-                                    />
-                                )}
+                                <div className="mb-3">
+                                    <h3 className="text-xl font-bold text-gray-900 mb-2 group-hover:text-[#253094] transition-colors">{dept.name}</h3>
+                                    {dept.description && (
+                                        <p className="text-sm text-gray-500 line-clamp-2 leading-relaxed">{dept.description}</p>
+                                    )}
+                                </div>
+
+                                <div className="space-y-4 mb-6 bg-gray-50 rounded-xl p-4 border border-gray-100">
+                                    {dept.manager && (
+                                        <div className="flex items-center gap-3 text-sm text-gray-700">
+                                            <div className="w-8 h-8 rounded-full bg-white flex items-center justify-center text-[#253094] shadow-sm">
+                                                <UserPlus className="w-4 h-4" />
+                                            </div>
+                                            <div className="flex flex-col">
+                                                <span className="text-xs text-gray-500 font-medium uppercase tracking-wider">Manager</span>
+                                                <span className="font-semibold">{dept.manager.name}</span>
+                                            </div>
+                                        </div>
+                                    )}
+                                    <div className="flex items-center gap-3 text-sm text-gray-700">
+                                        <div className="w-8 h-8 rounded-full bg-white flex items-center justify-center text-[#2D9E36] shadow-sm">
+                                            <Users className="w-4 h-4" />
+                                        </div>
+                                        <div className="flex flex-col">
+                                            <span className="text-xs text-gray-500 font-medium uppercase tracking-wider">Members</span>
+                                            <span className="font-semibold">{dept.memberCount || 0} People</span>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div className="flex gap-3 pt-2">
+                                    {canEditDepartment && (
+                                        <Button
+                                            onClick={() => {
+                                                // Handle edit logic here, assuming a method or pass to modal
+                                                showToast('Edit functionality coming soon', 'info');
+                                            }}
+                                            className="flex-1 h-10 flex items-center justify-center gap-2 border-primary text-primary hover:bg-primary-50 rounded-xl font-semibold"
+                                            icon={<Edit className="w-4 h-4" />}
+                                        >
+                                            Edit
+                                        </Button>
+                                    )}
+                                    {canDeleteDepartment && (
+                                        <Button
+                                            danger
+                                            onClick={() => handleDelete(dept._id)}
+                                            className="h-10 px-4 rounded-xl hover:bg-red-50"
+                                            icon={<Trash2 className="w-4 h-4" />}
+                                        />
+                                    )}
+                                </div>
                             </div>
                         </div>
                     ))}

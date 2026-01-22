@@ -104,9 +104,17 @@ export default function AssignedTasks() {
 
     const handleEditTask = (task) => {
         setEditingTask(task);
+
+        // Resolve email to ID for Select
+        let assignedToId = task.assignedToEmail;
+        if (!task.isSelfTask) {
+            const u = users.find(u => u.email === task.assignedToEmail);
+            if (u) assignedToId = u._id;
+        }
+
         setCreateFormData({
             task: task.task,
-            assignedToEmail: task.assignedToEmail,
+            assignedToEmail: assignedToId,
             priority: task.priority,
             targetDate: task.dueDate ? dayjs(task.dueDate) : null,
             targetTime: task.dueDate ? dayjs(task.dueDate) : null,
@@ -153,9 +161,16 @@ export default function AssignedTasks() {
             const diffMs = dueDate - now;
             const diffHours = Math.ceil(diffMs / (1000 * 60 * 60));
 
+            // Resolve ID to email
+            let finalAssignedToEmail = createFormData.assignedToEmail;
+            if (!createFormData.isSelfTask) {
+                const u = users.find(u => u._id === createFormData.assignedToEmail);
+                if (u) finalAssignedToEmail = u.email;
+            }
+
             const payload = {
                 task: createFormData.task,
-                assignedToEmail: createFormData.assignedToEmail,
+                assignedToEmail: finalAssignedToEmail,
                 priority: createFormData.priority,
                 notes: createFormData.notes,
                 isSelfTask: createFormData.isSelfTask,
@@ -587,7 +602,7 @@ export default function AssignedTasks() {
                                 optionFilterProp="label"
                                 size="large"
                                 options={users.map(u => ({
-                                    value: u.email,
+                                    value: u._id,
                                     label: `${u.name} (${u.role?.displayName || u.role})`
                                 }))}
                             />

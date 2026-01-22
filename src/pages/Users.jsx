@@ -1,10 +1,11 @@
-import { useState, useEffect } from 'react';
-import { Users as UsersIcon, UserPlus, Mail, Phone, Search as SearchIcon, Filter, Edit, Trash2, Building2 } from 'lucide-react';
+import { Users as UsersIcon, UserPlus, Mail, Phone, Search as SearchIcon, Edit, Trash2, Building2, Shield } from 'lucide-react';
 import { Input, Select, Button, Tabs } from 'antd';
+import { useState, useEffect } from 'react';
 import { useAuth } from '../hooks/useAuth';
 import Modal from '../components/common/Modal';
 import CreateUserForm from '../components/features/users/CreateUserForm';
 import EditUserForm from '../components/features/users/EditUserForm';
+import StatCard from '../components/common/StatCard';
 import api from '../utils/api';
 
 export default function Users() {
@@ -190,49 +191,93 @@ export default function Users() {
     return (
         <div>
             {/* Header */}
-            <div className="block md:flex items-center justify-between mb-6">
+            <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4 bg-white p-6 rounded-2xl shadow-sm border border-gray-100 mb-6">
                 <div>
-                    <h1 className="text-2xl font-bold text-gray-900">Team Members</h1>
-                    <p className="text-gray-500 mt-1">Manage your team members and their roles</p>
+                    <h1 className="text-2xl md:text-3xl font-extrabold text-[#253094]">Team Members</h1>
+                    <p className="text-gray-500 mt-1 font-medium">Manage your team members, roles, and permissions</p>
                 </div>
                 <Button
                     type="primary"
                     onClick={() => setShowCreateModal(true)}
-                    className="bg-primary hover:bg-primary-600 flex items-center gap-2 h-auto py-2.5 px-6"
+                    className="bg-primary hover:bg-primary-600 flex items-center justify-center gap-2 h-11 px-6 w-full md:w-auto rounded-xl font-bold shadow-lg shadow-primary/20 hover:shadow-primary/30 transition-all hover:-translate-y-0.5"
                     icon={<UserPlus className="w-5 h-5" />}
                 >
                     Add Member
                 </Button>
             </div>
 
-            {/* Tabs and Search */}
-            <div className="bg-white rounded-card shadow-card mb-6">
-                <div className="px-6 pt-2">
-                    <Tabs
-                        activeKey={activeTab}
-                        onChange={setActiveTab}
-                        items={tabsItems}
-                    />
-                </div>
+            {/* Stats Cards */}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
+                <StatCard
+                    title="Total Members"
+                    value={users.length.toString()}
+                    subtitle="Active users"
+                    icon={UsersIcon}
+                    iconBg="bg-blue-50"
+                    iconColor="text-[#253094]"
+                />
+                <StatCard
+                    title="Departments"
+                    value={departments.length.toString()}
+                    subtitle="Operational units"
+                    icon={Building2}
+                    iconBg="bg-green-50"
+                    iconColor="text-[#2D9E36]"
+                />
+                <StatCard
+                    title="Roles"
+                    value={roles.length.toString()}
+                    subtitle="Access levels"
+                    icon={Shield}
+                    iconBg="bg-purple-50"
+                    iconColor="text-purple-600"
+                />
+            </div>
 
-                {/* Search and Filter */}
-                <div className="p-4 border-t border-gray-100">
-                    <div className="flex items-center gap-3">
-                        <div className="flex-1">
-                            <Input
-                                prefix={<SearchIcon className="w-4 h-4 text-gray-400" />}
-                                placeholder="Search members..."
+            {/* Tabs and Search */}
+            {/* Filters & Search Section */}
+            <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 mb-8">
+                <div className="flex flex-col gap-6">
+                    {/* Role Tabs */}
+                    <div className="flex flex-wrap items-center gap-2 overflow-x-auto pb-2 scrollbar-hide">
+                        {tabsItems.map((tab) => (
+                            <button
+                                key={tab.key}
+                                onClick={() => setActiveTab(tab.key)}
+                                className={`
+                                    relative px-5 py-2.5 cursor-pointer rounded-xl text-sm font-semibold transition-all duration-300 whitespace-nowrap
+                                    ${activeTab === tab.key
+                                        ? 'bg-[#253094] text-white translate-y-[-1px]'
+                                        : 'bg-gray-50 text-gray-600 hover:bg-gray-100 hover:text-[#253094]'
+                                    }
+                                `}
+                            >
+                                {tab.label}
+                            </button>
+                        ))}
+                    </div>
+
+                    <div className="h-px bg-gray-100" />
+
+                    {/* Search & Filter Bar */}
+                    <div className="flex flex-col md:flex-row items-center gap-4">
+                        <div className="flex-1 w-full relative group">
+                            <SearchIcon className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400 group-hover:text-[#253094] transition-colors" />
+                            <input
+                                type="text"
+                                placeholder="Search members by name, email, or phone..."
                                 value={searchQuery}
                                 onChange={(e) => setSearchQuery(e.target.value)}
-                                size="large"
+                                className="w-full h-12 pl-12 pr-4 bg-gray-50 border-none rounded-xl text-gray-700 placeholder-gray-400 focus:ring-2 focus:ring-[#253094]/10 transition-all outline-none"
                             />
                         </div>
-                        <div className="w-[200px]">
+                        <div className="w-full md:w-[280px]">
                             <Select
                                 value={departmentFilter}
                                 onChange={setDepartmentFilter}
-                                style={{ width: '100%' }}
+                                style={{ width: '100%', height: '48px' }}
                                 size="large"
+                                className="custom-select-large"
                                 options={[
                                     { value: 'all', label: 'All Departments' },
                                     ...departments.map(d => ({ value: d._id, label: d.name }))
@@ -276,59 +321,67 @@ export default function Users() {
             ) : (
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                     {filteredUsers.map((member) => (
-                        <div key={member._id} className="bg-white rounded-card shadow-card p-6 hover:shadow-card-hover transition-shadow">
-                            <div className="flex items-start justify-between mb-4">
-                                <div className="w-12 h-12 bg-linear-to-br from-primary to-purple-600 rounded-full flex items-center justify-center text-white font-semibold text-lg">
-                                    {member.name.charAt(0).toUpperCase()}
-                                </div>
-                                <div className="flex items-center gap-2">
-                                    {member.designation && (
-                                        <span className={`px-3 py-1 rounded-full text-xs font-medium ${getDesignationColor(member.designation)}`}>
-                                            {member.designation}
+                        <div key={member._id} className="group bg-white rounded-2xl p-6 shadow-sm border border-gray-100 hover:shadow-xl hover:border-primary-100 transition-all duration-300 relative overflow-hidden">
+                            {/* Decorative Background */}
+                            <div className="absolute top-0 right-0 w-32 h-32 bg-gradient-to-br from-primary-50 to-transparent opacity-0 group-hover:opacity-100 rounded-bl-full transition-all duration-500 -mr-8 -mt-8 pointer-events-none"></div>
+
+                            <div className="relative z-10">
+                                <div className="flex items-start justify-between mb-3">
+                                    <div className="w-16 h-16 bg-[#253094] rounded-2xl shadow-lg shadow-blue-900/20 flex items-center justify-center text-white font-bold text-2xl transform transition-transform duration-300">
+                                        {member.name.charAt(0).toUpperCase()}
+                                    </div>
+                                    <div className="flex flex-col items-end gap-2">
+                                        <span className={`px-3 py-1 rounded-full text-xs font-semibold shadow-sm ${getRoleBadgeColor(member.role)}`}>
+                                            {member.role?.displayName || member.role}
                                         </span>
+                                        {member.designation && (
+                                            <span className={`px-3 py-1 rounded-full text-xs font-medium ${getDesignationColor(member.designation)}`}>
+                                                {member.designation}
+                                            </span>
+                                        )}
+                                    </div>
+                                </div>
+
+                                <div className="mb-3">
+                                    <h3 className="text-xl font-bold text-gray-900 mb-1 group-hover:text-[#253094] transition-colors">{member.name}</h3>
+                                    <p className="text-gray-500 font-medium text-sm flex items-center gap-1.5">
+                                        <Building2 className="w-3.5 h-3.5" />
+                                        {typeof member.department === 'object' ? member.department?.name : 'Department'}
+                                    </p>
+                                </div>
+
+                                <div className="space-y-3 mb-6 bg-gray-50 rounded-xl p-4 border border-gray-100">
+                                    {member.email && (
+                                        <div className="flex items-center gap-3 text-sm text-gray-600">
+                                            <div className="w-8 h-8 rounded-full bg-white flex items-center justify-center text-[#253094] shadow-sm">
+                                                <Mail className="w-4 h-4" />
+                                            </div>
+                                            <span className="truncate font-medium">{member.email}</span>
+                                        </div>
                                     )}
-                                    <span className={`px-3 py-1 rounded-full text-xs font-medium ${getRoleBadgeColor(member.role)}`}>
-                                        {member.role?.displayName || member.role}
-                                    </span>
-                                </div>
-                            </div>
-
-                            <h3 className="text-lg font-semibold text-gray-900 mb-1">{member.name}</h3>
-
-                            <div className="space-y-2 mb-4">
-                                {member.email && (
-                                    <div className="flex items-center gap-2 text-sm text-gray-600">
-                                        <Mail className="w-4 h-4" />
-                                        <span className="truncate">{member.email}</span>
+                                    <div className="flex items-center gap-3 text-sm text-gray-600">
+                                        <div className="w-8 h-8 rounded-full bg-white flex items-center justify-center text-[#2D9E36] shadow-sm">
+                                            <Phone className="w-4 h-4" />
+                                        </div>
+                                        <span className="font-medium">+{member.whatsapp}</span>
                                     </div>
-                                )}
-                                <div className="flex items-center gap-2 text-sm text-gray-600">
-                                    <Phone className="w-4 h-4" />
-                                    <span>+{member.whatsapp}</span>
                                 </div>
-                                {member.department && (
-                                    <div className="flex items-center gap-2 text-sm text-gray-600">
-                                        <Building2 className="w-4 h-4" />
-                                        <span className="truncate">
-                                            {typeof member.department === 'object' ? member.department.name : 'Department'}
-                                        </span>
-                                    </div>
-                                )}
-                            </div>
 
-                            <div className="flex gap-2">
-                                <Button
-                                    onClick={() => handleEdit(member)}
-                                    className="flex-1 flex items-center justify-center gap-1"
-                                    icon={<Edit className="w-4 h-4" />}
-                                >
-                                    Edit
-                                </Button>
-                                <Button
-                                    danger
-                                    onClick={() => handleDelete(member._id)}
-                                    icon={<Trash2 className="w-4 h-4" />}
-                                />
+                                <div className="flex gap-3 pt-2">
+                                    <Button
+                                        onClick={() => handleEdit(member)}
+                                        className="flex-1 h-10 flex items-center justify-center gap-2 border-primary text-primary hover:bg-primary-50 rounded-xl font-semibold"
+                                        icon={<Edit className="w-4 h-4" />}
+                                    >
+                                        Edit
+                                    </Button>
+                                    <Button
+                                        danger
+                                        onClick={() => handleDelete(member._id)}
+                                        className="h-10 px-4 rounded-xl hover:bg-red-50"
+                                        icon={<Trash2 className="w-4 h-4" />}
+                                    />
+                                </div>
                             </div>
                         </div>
                     ))}

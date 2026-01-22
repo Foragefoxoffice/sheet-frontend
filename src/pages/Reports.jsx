@@ -1,11 +1,16 @@
 import { useState, useEffect } from 'react';
-import { Download, Calendar, Users, CheckSquare, TrendingUp, FileText, BarChart3, PieChart } from 'lucide-react';
+import {
+    Download, Calendar, Users, FileText,
+    BarChart3, PieChart, LayoutGrid, CheckCircle2,
+    Clock, AlertCircle, Briefcase, ArrowDownToLine
+} from 'lucide-react';
 import { DatePicker, Button, Table, Card } from 'antd';
 import { PieChart as RechartsPie, Pie, Cell, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 import dayjs from 'dayjs';
 import { useAuth } from '../hooks/useAuth';
 import api from '../utils/api';
 import { showToast, formatDate } from '../utils/helpers';
+import StatCard from '../components/common/StatCard';
 
 const { RangePicker } = DatePicker;
 
@@ -208,57 +213,7 @@ export default function Reports() {
     // Top 10 performers for chart
     const topPerformers = userPerformance.slice(0, 10);
 
-    const performanceColumns = [
-        {
-            title: 'Name',
-            dataIndex: 'name',
-            key: 'name',
-            render: (text, record) => (
-                <div>
-                    <div className="font-medium text-gray-900">{text}</div>
-                    <div className="text-sm text-gray-500">{record.email}</div>
-                </div>
-            )
-        },
-        {
-            title: 'Role',
-            dataIndex: 'role',
-            key: 'role',
-        },
-        {
-            title: 'Total Tasks',
-            dataIndex: 'totalTasks',
-            key: 'totalTasks',
-            align: 'center',
-            sorter: (a, b) => a.totalTasks - b.totalTasks,
-        },
-        {
-            title: 'Completed',
-            dataIndex: 'completedTasks',
-            key: 'completedTasks',
-            align: 'center',
-            sorter: (a, b) => a.completedTasks - b.completedTasks,
-            render: (text) => <span className="text-green-600 font-medium">{text}</span>
-        },
-        {
-            title: 'Completion Rate',
-            dataIndex: 'completionRate',
-            key: 'completionRate',
-            align: 'center',
-            sorter: (a, b) => a.completionRate - b.completionRate,
-            render: (rate) => (
-                <div className="flex items-center justify-center gap-2">
-                    <div className="w-24 h-2 bg-gray-200 rounded-full overflow-hidden">
-                        <div
-                            className="h-full bg-green-500 rounded-full"
-                            style={{ width: `${rate}%` }}
-                        ></div>
-                    </div>
-                    <span className="text-sm font-medium text-gray-900">{rate}%</span>
-                </div>
-            )
-        }
-    ];
+
 
     if (loading) {
         return (
@@ -272,211 +227,299 @@ export default function Reports() {
     }
 
     return (
-        <div className="p-0 md:p-6 space-y-6">
-            {/* Header */}
-            <div className="flex items-center justify-between">
+        <div className="space-y-6">
+            {/* Header & Filter */}
+            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-white p-5 rounded-2xl shadow-sm border border-gray-100">
                 <div>
-                    <h1 className="text-2xl font-bold text-gray-900">Reports & Analytics</h1>
-                    <p className="text-gray-600 mt-1">View insights and download comprehensive reports</p>
+                    <h1 className="text-2xl md:text-3xl font-extrabold text-[#253094]">Reports & Analytics</h1>
+                    <p className="text-gray-500 mt-1">Get insights into task distribution and team performance</p>
                 </div>
-            </div>
-
-            {/* Date Range Filter */}
-            <div className="bg-white rounded-card shadow-card p-6">
-                <div className="flex items-center gap-4">
-                    <div className="flex items-center gap-2">
+                <div className="flex items-center gap-3 bg-gray-50 p-1.5 rounded-xl border border-gray-200">
+                    <div className="pl-3 pr-2 border-r border-gray-200">
                         <Calendar className="w-5 h-5 text-gray-500" />
-                        <span className="text-sm font-medium text-gray-700">Date Range:</span>
                     </div>
                     <RangePicker
                         value={dateRange}
                         onChange={setDateRange}
-                        size="large"
                         allowClear={false}
+                        bordered={false}
+                        className="w-64"
                     />
                 </div>
             </div>
 
-            {/* Statistics Cards */}
+            {/* Statistics Grid */}
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
-                <Card className="shadow-card border-none">
-                    <div className="flex items-center justify-between">
-                        <div>
-                            <div className="text-sm text-gray-600">Total Tasks</div>
-                            <div className="text-2xl font-bold text-gray-900 mt-1">
-                                {reportData.statistics.totalTasks}
-                            </div>
-                        </div>
-                        <CheckSquare className="w-10 h-10 text-blue-500" />
-                    </div>
-                </Card>
-
-                <Card className="shadow-card border-none">
-                    <div className="flex items-center justify-between">
-                        <div>
-                            <div className="text-sm text-gray-600">Completed</div>
-                            <div className="text-2xl font-bold text-green-600 mt-1">
-                                {reportData.statistics.completedTasks}
-                            </div>
-                        </div>
-                        <CheckSquare className="w-10 h-10 text-green-500" />
-                    </div>
-                </Card>
-
-                <Card className="shadow-card border-none">
-                    <div className="flex items-center justify-between">
-                        <div>
-                            <div className="text-sm text-gray-600">In Progress</div>
-                            <div className="text-2xl font-bold text-blue-600 mt-1">
-                                {reportData.statistics.inProgressTasks}
-                            </div>
-                        </div>
-                        <TrendingUp className="w-10 h-10 text-blue-500" />
-                    </div>
-                </Card>
-
-                <Card className="shadow-card border-none">
-                    <div className="flex items-center justify-between">
-                        <div>
-                            <div className="text-sm text-gray-600">Pending</div>
-                            <div className="text-2xl font-bold text-yellow-600 mt-1">
-                                {reportData.statistics.pendingTasks}
-                            </div>
-                        </div>
-                        <FileText className="w-10 h-10 text-yellow-500" />
-                    </div>
-                </Card>
-
-                <Card className="shadow-card border-none">
-                    <div className="flex items-center justify-between">
-                        <div>
-                            <div className="text-sm text-gray-600">Overdue</div>
-                            <div className="text-2xl font-bold text-red-600 mt-1">
-                                {reportData.statistics.overdueTasks}
-                            </div>
-                        </div>
-                        <FileText className="w-10 h-10 text-red-500" />
-                    </div>
-                </Card>
+                <StatCard
+                    title="Total Tasks"
+                    value={reportData.statistics.totalTasks}
+                    icon={LayoutGrid}
+                    iconBg="bg-blue-50"
+                    iconColor="text-blue-500"
+                />
+                <StatCard
+                    title="Completed"
+                    value={reportData.statistics.completedTasks}
+                    icon={CheckCircle2}
+                    iconBg="bg-green-50"
+                    iconColor="text-green-500"
+                />
+                <StatCard
+                    title="In Progress"
+                    value={reportData.statistics.inProgressTasks}
+                    icon={Briefcase}
+                    iconBg="bg-indigo-50"
+                    iconColor="text-indigo-500"
+                />
+                <StatCard
+                    title="Pending"
+                    value={reportData.statistics.pendingTasks}
+                    icon={Clock}
+                    iconBg="bg-orange-50"
+                    iconColor="text-orange-500"
+                />
+                <StatCard
+                    title="Overdue"
+                    value={reportData.statistics.overdueTasks}
+                    icon={AlertCircle}
+                    iconBg="bg-red-50"
+                    iconColor="text-red-500"
+                />
             </div>
 
-            {/* Download Reports Section */}
-            <div className="bg-white rounded-card shadow-card p-6">
-                <h2 className="text-lg font-semibold text-gray-900 mb-4">Download Reports</h2>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <Button
-                        onClick={downloadTasksReport}
-                        style={{ height: '60px' }}
-                        className="h-auto py-4 flex items-center justify-start gap-3"
-                        block
-                    >
-                        <Download className="w-5 h-5 text-primary" />
-                        <div className="text-left">
-                            <div className="font-medium text-gray-900">Tasks Report</div>
-                            <div className="text-sm text-gray-500">{reportData.tasks.length} tasks</div>
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                {/* Download Center - spans 1 col */}
+                <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 h-full">
+                    <div className="flex items-center gap-3 mb-6">
+                        <div className="p-2 bg-primary-50 rounded-lg">
+                            <ArrowDownToLine className="w-5 h-5 text-primary" />
                         </div>
-                    </Button>
-
-                    <Button
-                        onClick={downloadUsersReport}
-                        style={{ height: '60px' }}
-                        className="h-auto py-4 flex items-center justify-start gap-3"
-                        block
-                    >
-                        <Download className="w-5 h-5 text-primary" />
-                        <div className="text-left">
-                            <div className="font-medium text-gray-900">Users Report</div>
-                            <div className="text-sm text-gray-500">{reportData.users.length} users</div>
-                        </div>
-                    </Button>
-                </div>
-            </div>
-
-            {/* Statistics Chart */}
-            {statisticsChartData.length > 0 && (
-                <div className="bg-white rounded-card shadow-card p-6">
-                    <div className="flex items-center gap-2 mb-6">
-                        <PieChart className="w-5 h-5 text-primary" />
-                        <h2 className="text-lg font-semibold text-gray-900">Task Distribution</h2>
+                        <h2 className="text-lg font-bold text-gray-900">Export Report Data</h2>
                     </div>
-                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                        {/* Pie Chart */}
-                        <div>
-                            <ResponsiveContainer width="100%" height={300}>
-                                <RechartsPie>
-                                    <Pie
-                                        data={statisticsChartData}
-                                        cx="50%"
-                                        cy="50%"
-                                        labelLine={false}
-                                        label={({ name, percent }) => `${name}: ${(percent * 100).toFixed(0)}%`}
-                                        outerRadius={100}
-                                        fill="#8884d8"
-                                        dataKey="value"
-                                    >
-                                        {statisticsChartData.map((entry, index) => (
-                                            <Cell key={`cell-${index}`} fill={entry.color} />
-                                        ))}
-                                    </Pie>
-                                    <Tooltip />
-                                </RechartsPie>
-                            </ResponsiveContainer>
-                        </div>
 
-                        {/* Bar Chart */}
-                        <div>
-                            <ResponsiveContainer width="100%" height={300}>
-                                <BarChart data={statisticsChartData}>
-                                    <CartesianGrid strokeDasharray="3 3" />
-                                    <XAxis dataKey="name" />
-                                    <YAxis />
-                                    <Tooltip />
-                                    <Bar dataKey="value" fill="#3b82f6">
-                                        {statisticsChartData.map((entry, index) => (
-                                            <Cell key={`cell-${index}`} fill={entry.color} />
-                                        ))}
-                                    </Bar>
-                                </BarChart>
-                            </ResponsiveContainer>
-                        </div>
+                    <div className="space-y-4">
+                        <button style={{ marginBottom: '1rem' }}
+                            onClick={downloadTasksReport}
+                            className="w-full group flex items-start gap-4 p-4 rounded-xl border border-gray-200 hover:border-primary-200 hover:bg-primary-50/30 transition-all duration-200 text-left cursor-pointer"
+                        >
+                            <div className="p-2.5 bg-white rounded-lg shadow-sm border border-gray-100 group-hover:scale-110 transition-transform">
+                                <FileText className="w-6 h-6 text-blue-500" />
+                            </div>
+                            <div>
+                                <h3 className="font-semibold text-gray-900 group-hover:text-primary-600">Tasks Report</h3>
+                                <p className="text-sm text-gray-500 mt-0.5">{reportData.tasks.length} records available</p>
+                            </div>
+                        </button>
+
+                        <button
+                            onClick={downloadUsersReport}
+                            className="w-full group flex items-start gap-4 p-4 rounded-xl border border-gray-200 hover:border-primary-200 hover:bg-primary-50/30 transition-all duration-200 text-left cursor-pointer"
+                        >
+                            <div className="p-2.5 bg-white rounded-lg shadow-sm border border-gray-100 group-hover:scale-110 transition-transform">
+                                <Users className="w-6 h-6 text-purple-500" />
+                            </div>
+                            <div>
+                                <h3 className="font-semibold text-gray-900 group-hover:text-primary-600">Users Report</h3>
+                                <p className="text-sm text-gray-500 mt-0.5">{reportData.users.length} records available</p>
+                            </div>
+                        </button>
                     </div>
                 </div>
-            )}
 
-            {/* Performance Chart & Table */}
-            {userPerformance.length > 0 && (
-                <div className="bg-white rounded-card shadow-card p-6">
-                    <div className="flex items-center gap-2 mb-6">
-                        <BarChart3 className="w-5 h-5 text-primary" />
-                        <h2 className="text-lg font-semibold text-gray-900">User Performance</h2>
+                {/* Charts - spans 2 cols */}
+                <div className="lg:col-span-2 bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
+                    <div className="flex items-center justify-between mb-6">
+                        <div className="flex items-center gap-3">
+                            <div className="p-2 bg-purple-50 rounded-lg">
+                                <PieChart className="w-5 h-5 text-purple-600" />
+                            </div>
+                            <h2 className="text-lg font-bold text-gray-900">Task Distribution</h2>
+                        </div>
                     </div>
 
-                    {/* Performance Bar Chart */}
-                    {topPerformers.length > 0 && (
-                        <div className="mb-6">
-                            <h3 className="text-sm font-medium text-gray-700 mb-4">Top Performers by Completion Rate</h3>
-                            <ResponsiveContainer width="100%" height={300}>
-                                <BarChart data={topPerformers} layout="horizontal">
-                                    <CartesianGrid strokeDasharray="3 3" />
-                                    <XAxis type="number" domain={[0, 100]} />
-                                    <YAxis dataKey="name" type="category" width={150} />
-                                    <Tooltip />
-                                    <Legend />
-                                    <Bar dataKey="completionRate" fill="#10b981" name="Completion Rate (%)" />
-                                </BarChart>
-                            </ResponsiveContainer>
+                    {statisticsChartData.length > 0 ? (
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 items-center">
+                            <div className="h-[300px]">
+                                <ResponsiveContainer width="100%" height="100%">
+                                    <RechartsPie>
+                                        <Pie
+                                            data={statisticsChartData}
+                                            cx="50%"
+                                            cy="50%"
+                                            innerRadius={60}
+                                            outerRadius={100}
+                                            paddingAngle={5}
+                                            dataKey="value"
+                                        >
+                                            {statisticsChartData.map((entry, index) => (
+                                                <Cell key={`cell-${index}`} fill={entry.color} />
+                                            ))}
+                                        </Pie>
+                                        <Tooltip
+                                            contentStyle={{
+                                                backgroundColor: '#fff',
+                                                borderRadius: '12px',
+                                                border: 'none',
+                                                boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)'
+                                            }}
+                                        />
+                                        <Legend verticalAlign="bottom" height={36} iconType="circle" />
+                                    </RechartsPie>
+                                </ResponsiveContainer>
+                            </div>
+                            <div className="h-[300px]">
+                                <ResponsiveContainer width="100%" height="100%">
+                                    <BarChart data={statisticsChartData}>
+                                        <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#E5E7EB" />
+                                        <XAxis
+                                            dataKey="name"
+                                            axisLine={false}
+                                            tickLine={false}
+                                            tick={{ fill: '#6B7280', fontSize: 12 }}
+                                        />
+                                        <YAxis
+                                            axisLine={false}
+                                            tickLine={false}
+                                            tick={{ fill: '#6B7280', fontSize: 12 }}
+                                        />
+                                        <Tooltip
+                                            cursor={{ fill: '#F3F4F6' }}
+                                            contentStyle={{
+                                                backgroundColor: '#fff',
+                                                borderRadius: '12px',
+                                                border: 'none',
+                                                boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)'
+                                            }}
+                                        />
+                                        <Bar dataKey="value" radius={[6, 6, 0, 0]}>
+                                            {statisticsChartData.map((entry, index) => (
+                                                <Cell key={`cell-${index}`} fill={entry.color} />
+                                            ))}
+                                        </Bar>
+                                    </BarChart>
+                                </ResponsiveContainer>
+                            </div>
+                        </div>
+                    ) : (
+                        <div className="h-[300px] flex items-center justify-center text-gray-400">
+                            No data available for charts
                         </div>
                     )}
+                </div>
+            </div>
 
-                    {/* Performance Table */}
-                    <div>
-                        <h3 className="text-sm font-medium text-gray-700 mb-4">Detailed Performance Metrics</h3>
-                        <Table
-                            columns={performanceColumns}
-                            dataSource={userPerformance}
-                            pagination={{ pageSize: 10 }}
-                            rowKey="key"
-                        />
+            {/* Performance Section */}
+            {userPerformance.length > 0 && (
+                <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
+                    <div className="flex items-center gap-3 mb-6">
+                        <div className="p-2 bg-green-50 rounded-lg">
+                            <BarChart3 className="w-5 h-5 text-green-600" />
+                        </div>
+                        <div>
+                            <h2 className="text-lg font-bold text-gray-900">Team Performance Analysis</h2>
+                            <p className="text-sm text-gray-500">Top performers based on task completion</p>
+                        </div>
+                    </div>
+
+                    <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+                        {/* Top 5 Chart */}
+                        <div className="lg:col-span-1 h-[400px]">
+                            <ResponsiveContainer width="100%" height="100%">
+                                <BarChart data={topPerformers.slice(0, 5)} layout="vertical" margin={{ left: 0 }}>
+                                    <CartesianGrid strokeDasharray="3 3" horizontal={true} vertical={false} stroke="#E5E7EB" />
+                                    <XAxis type="number" hide />
+                                    <YAxis
+                                        dataKey="name"
+                                        type="category"
+                                        width={120}
+                                        tick={{ fill: '#4B5563', fontSize: 12, fontWeight: 500 }}
+                                        axisLine={false}
+                                        tickLine={false}
+                                    />
+                                    <Tooltip
+                                        cursor={{ fill: '#F3F4F6' }}
+                                        contentStyle={{
+                                            backgroundColor: '#fff',
+                                            borderRadius: '12px',
+                                            border: 'none',
+                                            boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)'
+                                        }}
+                                    />
+                                    <Bar
+                                        dataKey="completionRate"
+                                        fill="#10b981"
+                                        radius={[0, 4, 4, 0]}
+                                        barSize={24}
+                                        background={{ fill: '#F3F4F6', radius: [0, 4, 4, 0] }}
+                                    />
+                                </BarChart>
+                            </ResponsiveContainer>
+                        </div>
+
+                        {/* Detailed Table */}
+                        <div className="lg:col-span-2">
+                            <Table
+                                columns={[
+                                    {
+                                        title: 'Employee',
+                                        dataIndex: 'name',
+                                        key: 'name',
+                                        render: (text, record) => (
+                                            <div className="flex items-center gap-3">
+                                                <div className="w-8 h-8 rounded-full bg-primary-50 text-primary-600 flex items-center justify-center font-bold text-xs uppercase">
+                                                    {text.charAt(0)}
+                                                </div>
+                                                <div>
+                                                    <div className="font-semibold text-gray-900">{text}</div>
+                                                    <div className="text-xs text-gray-500">{record.role || 'N/A'}</div>
+                                                </div>
+                                            </div>
+                                        )
+                                    },
+                                    {
+                                        title: 'Performance',
+                                        dataIndex: 'completionRate',
+                                        key: 'completionRate',
+                                        render: (rate) => (
+                                            <div className="w-full max-w-[140px]">
+                                                <div className="flex justify-between mb-1.5">
+                                                    <span className="text-xs font-medium text-gray-700">Completion</span>
+                                                    <span className={`text-xs font-bold ${rate >= 80 ? 'text-green-600' : rate >= 50 ? 'text-blue-600' : 'text-orange-600'}`}>{rate}%</span>
+                                                </div>
+                                                <div className="w-full h-1.5 bg-gray-100 rounded-full overflow-hidden">
+                                                    <div
+                                                        className={`h-full rounded-full ${rate >= 80 ? 'bg-green-500' : rate >= 50 ? 'bg-blue-500' : 'bg-orange-500'}`}
+                                                        style={{ width: `${rate}%` }}
+                                                    />
+                                                </div>
+                                            </div>
+                                        )
+                                    },
+                                    {
+                                        title: 'Tasks',
+                                        key: 'tasks',
+                                        render: (_, record) => (
+                                            <div className="flex items-center gap-4 text-xs">
+                                                <div className="text-center">
+                                                    <div className="font-bold text-gray-900">{record.totalTasks}</div>
+                                                    <div className="text-gray-400">Total</div>
+                                                </div>
+                                                <div className="w-px h-6 bg-gray-100" />
+                                                <div className="text-center">
+                                                    <div className="font-bold text-green-600">{record.completedTasks}</div>
+                                                    <div className="text-gray-400">Done</div>
+                                                </div>
+                                            </div>
+                                        )
+                                    }
+                                ]}
+                                dataSource={userPerformance}
+                                pagination={{ pageSize: 5, size: 'small' }}
+                                rowKey="key"
+                                size="middle"
+                                className="custom-table"
+                            />
+                        </div>
                     </div>
                 </div>
             )}

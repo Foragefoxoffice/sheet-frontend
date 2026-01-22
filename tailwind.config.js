@@ -8,23 +8,30 @@ export default {
         extend: {
             colors: {
                 primary: {
-                    DEFAULT: '#1877F2',
-                    50: '#E7F3FF',
-                    100: '#D0E7FF',
-                    200: '#A8D4FF',
-                    300: '#7ABAFF',
-                    400: '#4A9EFF',
-                    500: '#1877F2',
-                    600: '#0C63D4',
-                    700: '#0952B8',
-                    800: '#07419C',
-                    900: '#053180',
+                    DEFAULT: '#253094',
+                    50: '#EEF0FF',
+                    100: '#E0E3FF',
+                    200: '#C6CCFF',
+                    300: '#A1ABFF',
+                    400: '#7885FF',
+                    500: '#4F5EFF', // Lighter for gradients
+                    600: '#3D4ACC',
+                    700: '#253094', // Main Brand Color
+                    800: '#1E2675',
+                    900: '#151A52',
                 },
                 success: {
-                    DEFAULT: '#10B981',
-                    50: '#ECFDF5',
-                    500: '#10B981',
-                    600: '#059669',
+                    DEFAULT: '#2D9E36',
+                    50: '#F0FDF4',
+                    100: '#DCFCE7',
+                    500: '#2D9E36',
+                    600: '#16A34A',
+                    700: '#15803D',
+                },
+                info: {
+                    DEFAULT: '#3B82F6',
+                    50: '#EFF6FF',
+                    500: '#3B82F6',
                 },
                 warning: {
                     DEFAULT: '#F59E0B',

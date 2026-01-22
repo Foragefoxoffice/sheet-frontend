@@ -206,7 +206,7 @@ export default function CreateUserForm({ onSuccess, onCancel, departments = [] }
             <Form.Item
                 label={
                     <span className="font-medium text-gray-700">
-                        Department {requiresDepartment && <span className="text-danger">*</span>}
+                        Department {requiresDepartment && <span className="text-[red]">*</span>}
                     </span>
                 }
                 name="department"
@@ -233,7 +233,7 @@ export default function CreateUserForm({ onSuccess, onCancel, departments = [] }
             </Form.Item>
 
             <div className="flex gap-3 pt-2">
-                <Button size="large" onClick={onCancel} className="flex-1">
+                <Button size="large" onClick={onCancel} className="flex-1 cancel-btn">
                     Cancel
                 </Button>
                 <Button
@@ -241,7 +241,7 @@ export default function CreateUserForm({ onSuccess, onCancel, departments = [] }
                     htmlType="submit"
                     loading={loading}
                     size="large"
-                    className="flex-1 bg-black text-white hover:bg-gray-800"
+                    className="flex-1 bg-black text-white hover:bg-gray-800 create-user-btn"
                     icon={<UserPlus className="w-4 h-4" />}
                 >
                     Create User

@@ -61,7 +61,7 @@ export default function CreateDepartmentForm({ onSuccess, onCancel, managers = [
 
 
             <div className="flex gap-3 pt-2">
-                <Button size="large" onClick={onCancel} className="flex-1">
+                <Button size="large" onClick={onCancel} className="flex-1 cancel-btn">
                     Cancel
                 </Button>
                 <Button
@@ -69,7 +69,7 @@ export default function CreateDepartmentForm({ onSuccess, onCancel, managers = [
                     htmlType="submit"
                     loading={loading}
                     size="large"
-                    className="flex-1 bg-primary hover:bg-primary-600"
+                    className="flex-1 bg-primary hover:bg-primary-600 create-user-btn"
                     icon={<Building2 className="w-4 h-4" />}
                 >
                     Create Department

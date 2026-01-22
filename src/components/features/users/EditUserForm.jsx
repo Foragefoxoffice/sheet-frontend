@@ -195,7 +195,7 @@ export default function EditUserForm({ user: userToEdit, onSuccess, onCancel, de
             </Form.Item>
 
             <div className="flex gap-3 pt-2">
-                <Button size="large" onClick={onCancel} className="flex-1">
+                <Button size="large" onClick={onCancel} className="flex-1 cancel-btn">
                     Cancel
                 </Button>
                 <Button
@@ -203,7 +203,7 @@ export default function EditUserForm({ user: userToEdit, onSuccess, onCancel, de
                     htmlType="submit"
                     loading={loading}
                     size="large"
-                    className="flex-1 bg-black text-white hover:bg-gray-800"
+                    className="flex-1 bg-black text-white hover:bg-gray-800 create-user-btn"
                     icon={<Save className="w-4 h-4" />}
                 >
                     Update User
