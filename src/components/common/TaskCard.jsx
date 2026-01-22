@@ -86,7 +86,7 @@ export default function TaskCard({ task, onStatusChange, onView, onEdit, onDelet
                 {/* Details Grid */}
                 <div className="grid grid-cols-2 gap-y-4 gap-x-2 mt-2 mb-4">
                     {/* Assigned To */}
-                    <div className="flex flex-col gap-1">
+                    <div className="flex flex-col gap-2">
                         <span className="text-[11px] font-semibold text-gray-400 uppercase tracking-wider flex items-center gap-1">
                             <User className="w-3 h-3" /> Assigned To
                         </span>
@@ -101,7 +101,7 @@ export default function TaskCard({ task, onStatusChange, onView, onEdit, onDelet
                     </div>
 
                     {/* Due Date */}
-                    <div className="flex flex-col gap-1">
+                    <div className="flex flex-col gap-2">
                         <span className="text-[11px] font-semibold text-gray-400 uppercase tracking-wider flex items-center gap-1">
                             <Calendar className="w-3 h-3" /> Due Date
                         </span>

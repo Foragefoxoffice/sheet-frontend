@@ -145,6 +145,7 @@ export default function AllTasks() {
     const [showDetailModal, setShowDetailModal] = useState(false);
     const [showCreateModal, setShowCreateModal] = useState(false);
     const [users, setUsers] = useState([]);
+    const [assignableUsers, setAssignableUsers] = useState([]);
     const [newComment, setNewComment] = useState('');
     const [currentPage, setCurrentPage] = useState(1);
     const [pageSize, setPageSize] = useState(12);
@@ -262,6 +263,69 @@ export default function AllTasks() {
     const [departments, setDepartments] = useState([]);
     const [showSearch, setShowSearch] = useState(false);
     const [showMobileFilters, setShowMobileFilters] = useState(false);
+
+    // Derive available roles dynamically from users
+    const roles = useMemo(() => {
+        const uniqueRoles = new Map();
+        users.forEach(u => {
+            if (u.role) {
+                const roleName = u.role.name || u.role;
+                const displayName = u.role.displayName || u.role.name || u.role;
+                if (roleName && !uniqueRoles.has(roleName)) {
+                    uniqueRoles.set(roleName, displayName);
+                }
+            }
+        });
+        return Array.from(uniqueRoles.entries())
+            .map(([value, label]) => ({ value, label }))
+            .sort((a, b) => a.label.localeCompare(b.label));
+    }, [users]);
+
+    // Filter user options based on selected department and role
+    const filteredUserOptions = useMemo(() => {
+        let filtered = users;
+
+        if (departmentFilter !== 'all') {
+            filtered = filtered.filter(u => {
+                const deptId = u.department?._id || u.department;
+                return deptId === departmentFilter;
+            });
+        }
+
+        if (roleFilter !== 'all') {
+            filtered = filtered.filter(u => {
+                const roleName = u.role?.name || u.role;
+                return roleName === roleFilter;
+            });
+        }
+
+        // Deduplicate users by email to prevent duplicate entries in dropdown
+        const uniqueUsersMap = new Map();
+        filtered.forEach(u => {
+            if (u.email && !uniqueUsersMap.has(u.email)) {
+                uniqueUsersMap.set(u.email, {
+                    value: u.email,
+                    label: `${u.name} (${u.role?.displayName || u.role?.name || 'N/A'})`
+                });
+            }
+        });
+
+        return [
+            { value: 'all', label: 'All Users' },
+            ...Array.from(uniqueUsersMap.values())
+                .sort((a, b) => a.label.localeCompare(b.label))
+        ];
+    }, [users, departmentFilter, roleFilter]);
+
+    // Reset user filter if selected user is not in the filtered options
+    useEffect(() => {
+        if (userFilter !== 'all') {
+            const isUserValid = filteredUserOptions.some(opt => opt.value === userFilter);
+            if (!isUserValid) {
+                setUserFilter('all');
+            }
+        }
+    }, [filteredUserOptions, userFilter]);
 
     useEffect(() => {
         fetchAllTasks();
@@ -382,10 +446,60 @@ export default function AllTasks() {
 
     const fetchUsers = async () => {
         try {
-            const response = await api.get('/users/for-tasks');
-            setUsers(response.data.users || []);
+            let fetchedUsers = [];
+
+            // 1. Fetch all users using the robust /users API
+            if (user?.permissions?.viewUsers) {
+                const response = await api.get('/users?limit=1000');
+                fetchedUsers = response.data.users || [];
+                setUsers(fetchedUsers);
+            } else {
+                // Fallback for users without viewUsers permission (e.g. basic staff)
+                const response = await api.get('/users/for-tasks');
+                fetchedUsers = response.data.users || [];
+                setUsers(fetchedUsers);
+            }
+
+            // 2. Filter assignable users based on Role (Frontend Mirror of Backend Logic)
+            // This ensures we show the correct options even if the specific backend endpoint misses some
+            const currentUserRole = (user?.role?.name || user?.role || '').toLowerCase().replace(/\s+/g, '');
+            let validAssignees = fetchedUsers;
+
+            // Logic matching TaskController.js restrictions
+            if (currentUserRole === 'director' || currentUserRole === 'director2' || user?.name?.includes('Vasanth') || user?.name?.includes('Guna') || user?.name?.includes('Sathish')) {
+                // Directors -> GMs and Dept Heads
+                validAssignees = fetchedUsers.filter(u => {
+                    const r = (u.role?.name || u.role || '').toLowerCase().replace(/\s+/g, '');
+                    return ['generalmanager', 'manager', 'departmenthead'].includes(r);
+                });
+            }
+            else if (currentUserRole === 'generalmanager') {
+                // GMs -> Dept Heads, PMs, Standalone
+                validAssignees = fetchedUsers.filter(u => {
+                    const r = (u.role?.name || u.role || '').toLowerCase().replace(/\s+/g, '');
+                    return ['manager', 'departmenthead', 'projectmanager', 'standalone', 'standalonerole', 'projectmanagerandstandalone'].includes(r);
+                });
+            }
+            else if (currentUserRole === 'manager' || currentUserRole === 'departmenthead') {
+                validAssignees = fetchedUsers.filter(u => {
+                    const uDeptId = u.department?._id || u.department;
+                    const myDeptId = user.department?._id || user.department;
+                    if (uDeptId && myDeptId) {
+                        return String(uDeptId) === String(myDeptId);
+                    }
+                    return true;
+                });
+            }
+            else if (['staff', 'projectmanager', 'standalone', 'standalonerole', 'projectmanagerandstandalone'].includes(currentUserRole)) {
+                validAssignees = fetchedUsers;
+            }
+
+            setAssignableUsers(validAssignees);
+
         } catch (error) {
             console.error('Error fetching users:', error);
+            // Fallback
+            if (users.length > 0) setAssignableUsers(users);
         }
     };
 
@@ -915,17 +1029,17 @@ export default function AllTasks() {
                                     };
                                 case 'assigned-to-me':
                                     return {
-                                        department: user?.permissions?.filterAssignedToMeDepartment,
+                                        department: false,
                                         priority: user?.permissions?.filterAssignedToMePriority,
                                         role: user?.permissions?.filterAssignedToMeRole,
-                                        user: user?.permissions?.filterAssignedToMeUser,
+                                        user: false,
                                     };
                                 case 'i-assigned':
                                     return {
                                         department: user?.permissions?.filterIAssignedDepartment,
                                         priority: user?.permissions?.filterIAssignedPriority,
                                         role: user?.permissions?.filterIAssignedRole,
-                                        user: user?.permissions?.filterIAssignedUser,
+                                        user: true,
                                     };
                                 case 'self-tasks':
                                     return {
@@ -1024,10 +1138,7 @@ export default function AllTasks() {
                                                     className="w-full md:w-36"
                                                     options={[
                                                         { value: 'all', label: 'All Roles' },
-                                                        { value: 'director', label: 'Director' },
-                                                        { value: 'generalmanager', label: 'General Manager' },
-                                                        { value: 'manager', label: 'Manager' },
-                                                        { value: 'staff', label: 'Staff' }
+                                                        ...roles
                                                     ]}
                                                 />
                                             </div>
@@ -1041,14 +1152,12 @@ export default function AllTasks() {
                                                     onChange={(value) => setUserFilter(value)}
                                                     className="w-full md:w-56"
                                                     showSearch
+                                                    placeholder="Search User"
                                                     optionFilterProp="label"
-                                                    options={[
-                                                        { value: 'all', label: 'All Users' },
-                                                        ...users.map(u => ({
-                                                            value: u.email,
-                                                            label: `${u.name} (${u.role?.displayName || u.role})`
-                                                        }))
-                                                    ]}
+                                                    filterOption={(input, option) =>
+                                                        (option?.label ?? '').toLowerCase().includes(input.toLowerCase())
+                                                    }
+                                                    options={filteredUserOptions}
                                                 />
                                             </div>
                                         )}
@@ -1103,12 +1212,17 @@ export default function AllTasks() {
                                 const userEmail = user.email;
                                 const canEditStatus = task.assignedToEmail === userEmail;
                                 const isCreator = getId(task.createdBy) === userId;
+                                const userRoleName = (user?.role?.name || user?.role || '').toLowerCase().replace(/\s+/g, '');
+                                const isDirectorRole = ['director', 'maindirector', 'director2', 'generalmanager'].includes(userRoleName);
+
                                 const canEditDetails =
-                                    user.permissions.editAllTasks ||
-                                    (isCreator && user.permissions.editOwnTasks);
+                                    viewFilter !== 'assigned-to-me' &&
+                                    ((!isDirectorRole && user.permissions.editAllTasks) ||
+                                        (isCreator && user.permissions.editOwnTasks));
                                 const canDeleteTask =
-                                    user.permissions.deleteAllTasks ||
-                                    (isCreator && user.permissions.deleteOwnTasks);
+                                    viewFilter !== 'assigned-to-me' &&
+                                    ((!isDirectorRole && user.permissions.deleteAllTasks) ||
+                                        (isCreator && user.permissions.deleteOwnTasks));
 
                                 return (
                                     <TaskCard
@@ -1264,7 +1378,7 @@ export default function AllTasks() {
                                 showSearch
                                 optionFilterProp="children"
                             >
-                                {users.map(u => (
+                                {assignableUsers.map(u => (
                                     <Select.Option key={u._id} value={u._id}>
                                         {u.name} ({u.designation || u.role?.displayName})
                                     </Select.Option>
@@ -1433,17 +1547,17 @@ export default function AllTasks() {
                                 };
                             case 'assigned-to-me':
                                 return {
-                                    department: user?.permissions?.filterAssignedToMeDepartment,
+                                    department: false,
                                     priority: user?.permissions?.filterAssignedToMePriority,
                                     role: user?.permissions?.filterAssignedToMeRole,
-                                    user: user?.permissions?.filterAssignedToMeUser,
+                                    user: false,
                                 };
                             case 'i-assigned':
                                 return {
                                     department: user?.permissions?.filterIAssignedDepartment,
                                     priority: user?.permissions?.filterIAssignedPriority,
                                     role: user?.permissions?.filterIAssignedRole,
-                                    user: user?.permissions?.filterIAssignedUser,
+                                    user: true,
                                 };
                             case 'self-tasks':
                                 return {
@@ -1539,10 +1653,7 @@ export default function AllTasks() {
                                         size="large"
                                         options={[
                                             { value: 'all', label: 'All Roles' },
-                                            { value: 'director', label: 'Director' },
-                                            { value: 'generalmanager', label: 'General Manager' },
-                                            { value: 'manager', label: 'Manager' },
-                                            { value: 'staff', label: 'Staff' }
+                                            ...roles
                                         ]}
                                     />
                                 </div>

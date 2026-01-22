@@ -85,9 +85,17 @@ export default function Sidebar() {
         if (item.permission === 'superAdminOnly') return false;
         if (!item.permission) return true;
 
+        // Check for permission match
         if (Array.isArray(item.permission)) {
             return item.permission.some(perm => user?.permissions?.[perm] === true);
         }
+
+        // Explicitly allow Reports and Approvals for Staff, PM, and Standalone roles
+        const allowedRolesForAnalytics = ['staff', 'projectmanager', 'standalone', 'standalonerole', 'projectmanagerandstandalone'];
+        if ((item.label === 'Approvals' || item.label === 'Reports') && allowedRolesForAnalytics.includes(userRole?.toLowerCase().replace(/\s+/g, ''))) {
+            return true;
+        }
+
         return user?.permissions?.[item.permission] === true;
     });
 

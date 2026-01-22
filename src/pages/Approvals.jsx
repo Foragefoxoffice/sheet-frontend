@@ -78,8 +78,12 @@ export default function Approvals() {
     const [searchQuery, setSearchQuery] = useState('');
 
     // Check permissions
-    const canViewApprovals = user?.permissions?.viewApprovals;
-    const canApproveReject = user?.permissions?.approveRejectTasks;
+    const userRole = (user?.role?.name || user?.role || '').toLowerCase().replace(/\s+/g, '');
+    const allowedRolesForApprovals = ['staff', 'projectmanager', 'standalone', 'standalonerole', 'projectmanagerandstandalone'];
+
+    // Allow access if user has explicit permission OR is one of the allowed roles
+    const canViewApprovals = user?.permissions?.viewApprovals || allowedRolesForApprovals.includes(userRole);
+    const canApproveReject = user?.permissions?.approveRejectTasks || allowedRolesForApprovals.includes(userRole);
 
     useEffect(() => {
         if (canViewApprovals) {
