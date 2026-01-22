@@ -72,7 +72,7 @@ export default function Sidebar() {
             path: '/roles',
             icon: Shield,
             label: 'Roles',
-            permission: ['viewRoles', 'createRoles', 'editRoles', 'deleteRoles'],
+            permission: ['viewRoles', 'createRoles', 'deleteRoles'],
             superAdminAccess: true,
         },
     ];
@@ -156,7 +156,7 @@ export default function Sidebar() {
 
                             {/* Label */}
                             {isSidebarExpanded && (
-                                <span className={`relative z-10 text-[15px] font-medium whitespace-nowrap transition-all duration-300 delay-75 ${active ? 'font-semibold' : ''
+                                <span className={`relative z-10 text-[16px] font-medium whitespace-nowrap transition-all duration-300 delay-75 ${active ? 'font-semibold' : ''
                                     }`}>
                                     {item.label}
                                 </span>

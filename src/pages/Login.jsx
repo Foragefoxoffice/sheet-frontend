@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Form, Input, Button, Alert, Space } from 'antd';
-import { Lock, Phone, Shield, ArrowRight } from 'lucide-react';
+import { Lock, ArrowRight } from 'lucide-react';
 import { useAuth } from '../hooks/useAuth';
 import TaskCard from '../components/common/TaskCard';
 import { TASK_STATUS } from '../utils/taskHelpers';
@@ -34,7 +34,6 @@ export default function Login() {
     };
 
     // Dummy task for showcase
-    // Dummy task for showcase
     const showcaseTask = {
         _id: 'showcase-task',
         sno: 101,
@@ -55,7 +54,7 @@ export default function Login() {
     return (
         <div className="min-h-screen flex overflow-hidden">
             {/* Left Column - Task Showcase */}
-            <div className="hidden lg:flex lg:w-1/2 relative bg-linear-to-br from-primary-600 via-primary-700 to-purple-900 overflow-hidden items-center justify-center p-12">
+            <div className="hidden lg:flex lg:w-1/2 relative bg-gradient-to-br from-primary-600 via-primary-700 to-primary-900 overflow-hidden items-center justify-center p-12">
                 {/* Animated Background Elements */}
                 <div className="absolute inset-0 opacity-20">
                     <div className="absolute top-20 left-20 w-72 h-72 bg-white rounded-full mix-blend-overlay filter blur-3xl animate-blob"></div>
@@ -83,7 +82,7 @@ export default function Login() {
             </div>
 
             {/* Right Column - Login Form */}
-            <div className="w-full lg:w-1/2 flex items-center justify-center p-6 bg-linear-to-br from-gray-50 to-white relative">
+            <div className="w-full lg:w-1/2 flex items-center justify-center p-6 bg-gradient-to-br from-gray-50 to-white relative">
                 {/* Decorative Elements */}
                 <div className="absolute top-0 right-0 w-64 h-64 bg-primary-100 rounded-full mix-blend-multiply filter blur-3xl opacity-30 animate-blob"></div>
                 <div className="absolute bottom-0 left-0 w-64 h-64 bg-purple-100 rounded-full mix-blend-multiply filter blur-3xl opacity-30 animate-blob animation-delay-2000"></div>
@@ -129,7 +128,7 @@ export default function Login() {
                                         style={{ width: '60px' }}
                                         value="+91"
                                         disabled
-                                        className="text-center"
+                                        className="text-center mr-2"
                                     />
                                     <Input
                                         placeholder="98765 43210"
@@ -173,7 +172,7 @@ export default function Login() {
                                     type="primary"
                                     htmlType="submit"
                                     loading={loading}
-                                    className="w-full h-12 bg-linear-to-r from-primary-600 to-primary-700 hover:from-primary-700 hover:to-primary-800 border-none shadow-lg hover:shadow-xl transition-all duration-300 transform hover:-translate-y-0.5 rounded-xl font-semibold text-lg flex items-center justify-center gap-2"
+                                    className="w-full h-12 bg-gradient-to-r from-primary-600 to-primary-700 hover:from-primary-700 hover:to-primary-800 border-none shadow-lg hover:shadow-xl transition-all duration-300 transform hover:-translate-y-0.5 rounded-xl font-semibold text-lg flex items-center justify-center gap-2"
                                 >
                                     Sign In <ArrowRight className="w-5 h-5" />
                                 </Button>

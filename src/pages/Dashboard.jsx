@@ -1,12 +1,108 @@
 import { useState, useEffect } from 'react';
 import { Users, CheckSquare, TrendingUp, Clock } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
+import { Skeleton } from 'antd';
 
 import { useAuth } from '../hooks/useAuth';
 import StatCard from '../components/common/StatCard';
 import DonutChart from '../components/common/DonutChart';
 import api from '../utils/api';
 import { showToast } from '../utils/helpers';
+
+function DashboardSkeleton({
+    canViewUsers,
+    canCreateTasks,
+    canViewAllTasks,
+    canViewDeptTasks,
+    canApproveTasks
+}) {
+    const statCardCount = canViewUsers ? 4 : 3;
+
+    const quickActionCount =
+        (canCreateTasks ? 1 : 0) +
+        (canViewAllTasks || canViewDeptTasks ? 1 : 0) +
+        1 + // My Tasks (always)
+        (canApproveTasks ? 1 : 0);
+
+    return (
+        <div className="p-0 md:p-0 space-y-6">
+            {/* Header skeleton */}
+            <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4 bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
+                <div className="w-full md:w-auto">
+                    <Skeleton active title={{ width: 220 }} paragraph={{ rows: 1, width: 320 }} />
+                </div>
+                <div className="w-full md:w-[260px]">
+                    <div className="bg-gray-50 px-4 py-2 rounded-xl border border-gray-100">
+                        <Skeleton active title={false} paragraph={{ rows: 1, width: '100%' }} />
+                    </div>
+                </div>
+            </div>
+
+            {/* Stat cards skeleton */}
+            <div
+                className={`grid grid-cols-1 md:grid-cols-2 gap-6 ${statCardCount === 4 ? 'lg:grid-cols-4' : 'lg:grid-cols-3'
+                    }`}
+            >
+                {Array.from({ length: statCardCount }).map((_, idx) => (
+                    <div key={idx} className="bg-white rounded-2xl shadow-sm border border-gray-100 p-5">
+                        <div className="flex items-start justify-between gap-4">
+                            <div className="flex-1">
+                                <Skeleton active title={{ width: 140 }} paragraph={{ rows: 2, width: ['60%', '40%'] }} />
+                            </div>
+                            <Skeleton.Avatar active size={48} shape="square" />
+                        </div>
+                    </div>
+                ))}
+            </div>
+
+            {/* Charts skeleton */}
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                <div className="bg-white rounded-card p-6 shadow-card">
+                    <Skeleton active title={{ width: 220 }} paragraph={{ rows: 1, width: 180 }} />
+                    <div className="mt-4">
+                        <div className="flex items-center justify-center py-6">
+                            <Skeleton.Avatar active size={220} shape="circle" />
+                        </div>
+                        <div className="mt-4 space-y-3">
+                            <Skeleton active title={false} paragraph={{ rows: 4, width: ['90%', '80%', '85%', '75%'] }} />
+                        </div>
+                    </div>
+                </div>
+
+                <div className="bg-white rounded-card p-6 shadow-card">
+                    <Skeleton active title={{ width: 140 }} paragraph={{ rows: 1, width: 220 }} />
+                    <div className="mt-4 space-y-4">
+                        {Array.from({ length: 3 }).map((_, idx) => (
+                            <div key={idx} className="p-4 rounded-lg border border-gray-100 bg-gray-50/40">
+                                <div className="flex items-center justify-between gap-4">
+                                    <div className="flex-1">
+                                        <Skeleton active title={{ width: 140 }} paragraph={{ rows: 1, width: 80 }} />
+                                    </div>
+                                    <Skeleton.Avatar active size={48} shape="square" />
+                                </div>
+                            </div>
+                        ))}
+                    </div>
+                </div>
+            </div>
+
+            {/* Quick actions skeleton */}
+            <div className="bg-white rounded-card p-6 shadow-card">
+                <Skeleton active title={{ width: 140 }} paragraph={false} />
+                <div className="mt-4 grid grid-cols-1 md:grid-cols-3 gap-6">
+                    {Array.from({ length: Math.min(quickActionCount, 3) }).map((_, idx) => (
+                        <div key={idx} className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
+                            <Skeleton.Avatar active size={48} shape="square" />
+                            <div className="mt-4">
+                                <Skeleton active title={{ width: 160 }} paragraph={{ rows: 1, width: 220 }} />
+                            </div>
+                        </div>
+                    ))}
+                </div>
+            </div>
+        </div>
+    );
+}
 
 export default function Dashboard() {
     const navigate = useNavigate();
@@ -55,44 +151,24 @@ export default function Dashboard() {
                 requests.push(Promise.resolve({ data: { count: 0 } }));
             }
 
-            // Fetch tasks based on permissions
-            if (canViewAllTasks) {
-                // Fetch all tasks
-                requests.push(
-                    api.get('/tasks/assigned'),
-                    api.get('/tasks'),
-                    api.get('/tasks/self')
-                );
-            } else if (canViewDeptTasks) {
-                // Fetch department tasks (backend filters by department)
-                requests.push(
-                    api.get('/tasks/assigned'),
-                    api.get('/tasks'),
-                    api.get('/tasks/self')
-                );
-            } else {
-                // Fetch only my tasks
-                requests.push(
-                    api.get('/tasks'),
-                    Promise.resolve({ data: { tasks: [] } }),
-                    Promise.resolve({ data: { tasks: [] } })
-                );
-            }
+            // Fetch all tasks using the single endpoint that handles permissions
+            requests.push(api.get('/tasks/all'));
 
-            const [usersRes, tasksRes, myTasksRes, selfRes] = await Promise.all(requests);
+            const [usersRes, tasksRes] = await Promise.all(requests);
 
-            const allTasks = [
-                ...(tasksRes.data.tasks || []),
-                ...(myTasksRes.data.tasks || []),
-                ...(selfRes.data.tasks || []),
-            ];
+            const allTasks = tasksRes.data.tasks || [];
 
-            // Remove duplicates based on _id
+            // Remove duplicates just in case
             const uniqueTasks = Array.from(
                 new Map(allTasks.map(task => [task._id, task])).values()
             );
 
-            const myTasks = myTasksRes.data.tasks || [];
+            // Filter "My Tasks" (Assigned TO me by others)
+            const myTasks = uniqueTasks.filter(task =>
+                task.assignedTo?.email === user?.email &&
+                task.createdBy?.email !== user?.email
+            );
+
             const now = new Date();
 
             setDashboardData({
@@ -128,12 +204,13 @@ export default function Dashboard() {
 
     if (loading) {
         return (
-            <div className="flex items-center justify-center min-h-screen">
-                <div className="text-center">
-                    <div className="w-16 h-16 border-4 border-primary border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
-                    <p className="text-gray-600">Loading dashboard...</p>
-                </div>
-            </div>
+            <DashboardSkeleton
+                canViewUsers={canViewUsers}
+                canCreateTasks={canCreateTasks}
+                canViewAllTasks={canViewAllTasks}
+                canViewDeptTasks={canViewDeptTasks}
+                canApproveTasks={canApproveTasks}
+            />
         );
     }
 
@@ -183,7 +260,7 @@ export default function Dashboard() {
                 />
 
                 <StatCard
-                    title="My Assigned Tasks"
+                    title="Tasks Assigned For Me"
                     value={dashboardData.myTasks.total.toString()}
                     subtitle={`${dashboardData.myTasks.pending} pending`}
                     icon={TrendingUp}

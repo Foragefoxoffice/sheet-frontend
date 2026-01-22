@@ -17,7 +17,7 @@ export default function StatCard({
 
             <div className="flex items-start justify-between relative z-10">
                 <div className="flex-1">
-                    <p className="text-sm font-semibold text-gray-500 mb-1 uppercase">{title}</p>
+                    <p className="text-md font-semibold text-gray-500 mb-1">{title}</p>
                     <h3 className="text-3xl font-bold text-gray-900 mb-2 tracking-tight">{value}</h3>
                     {subtitle && (
                         <p className="text-sm text-gray-500 font-medium">{subtitle}</p>
@@ -37,7 +37,7 @@ export default function StatCard({
                     )}
                 </div>
                 {Icon && (
-                    <div className={`${iconBg} ${iconColor} p-4 rounded-xl shadow-inner group-hover:scale-110 transition-transform duration-300`}>
+                    <div className={`${iconBg} ${iconColor} p-3 rounded-xl shadow-inner group-hover:scale-110 transition-transform duration-300`}>
                         <Icon className="w-7 h-7" />
                     </div>
                 )}

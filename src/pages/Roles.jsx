@@ -1,11 +1,72 @@
 import { useState, useEffect } from 'react';
-import { Plus, Edit2, Trash2, Shield, Search as SearchIcon, ShieldAlert, LayoutGrid, CheckCircle2, Lock } from 'lucide-react';
-import { Input, Button, Modal as AntModal, Form, Checkbox } from 'antd';
+import { Plus, Trash2, Shield, Search as SearchIcon, ShieldAlert, LayoutGrid, CheckCircle2, Lock } from 'lucide-react';
+import { Input, Button, Modal as AntModal, Form, Checkbox, Skeleton } from 'antd';
 import { useAuth } from '../hooks/useAuth';
 import Modal from '../components/common/Modal';
 import api from '../utils/api';
 import { showToast } from '../utils/helpers';
 import StatCard from '../components/common/StatCard';
+
+function RolesSkeleton() {
+    return (
+        <div className="space-y-6">
+            {/* Header */}
+            <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4 bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
+                <div className="w-full md:w-auto">
+                    <Skeleton active title={{ width: 200 }} paragraph={{ rows: 1, width: 300 }} />
+                </div>
+                <div className="hidden md:block">
+                    <Skeleton.Button active size="large" style={{ width: 150, borderRadius: '0.75rem' }} />
+                </div>
+            </div>
+
+            {/* Stats Cards */}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                {[1, 2, 3].map((i) => (
+                    <div key={i} className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100 relative overflow-hidden">
+                        <div className="flex items-start justify-between">
+                            <div className="flex-1">
+                                <Skeleton active title={{ width: 100, size: 'small' }} paragraph={{ rows: 1, width: 60 }} />
+                            </div>
+                            <Skeleton.Avatar active size={48} shape="square" className="rounded-xl" />
+                        </div>
+                    </div>
+                ))}
+            </div>
+
+            {/* Search Section */}
+            <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
+                <Skeleton.Input active size="large" block style={{ borderRadius: '0.75rem', height: 48 }} />
+            </div>
+
+            {/* Roles Grid */}
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                {[1, 2, 3, 4, 5, 6].map((i) => (
+                    <div key={i} className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100 flex flex-col h-full">
+                        <div className="flex items-center gap-4 mb-6">
+                            <Skeleton.Avatar active size={56} shape="square" className="rounded-2xl" />
+                            <div className="flex-1">
+                                <Skeleton active title={{ width: '60%' }} paragraph={{ rows: 1, width: '40%' }} />
+                            </div>
+                        </div>
+
+                        <div className="flex-1 mb-6">
+                            <Skeleton active title={false} paragraph={{ rows: 2 }} />
+                        </div>
+
+                        <div className="mt-auto">
+                            <div className="flex items-center justify-between py-4 border-t border-gray-100 mb-4">
+                                <Skeleton.Button active size="small" shape="round" style={{ width: 80 }} />
+                                <Skeleton.Button active size="small" shape="round" style={{ width: 100 }} />
+                            </div>
+                            <Skeleton.Button active block style={{ borderRadius: '0.75rem' }} />
+                        </div>
+                    </div>
+                ))}
+            </div>
+        </div>
+    );
+}
 
 export default function Roles() {
     const { user } = useAuth();
@@ -13,7 +74,6 @@ export default function Roles() {
     const [loading, setLoading] = useState(true);
     const [searchTerm, setSearchTerm] = useState('');
     const [showCreateModal, setShowCreateModal] = useState(false);
-    const [showEditModal, setShowEditModal] = useState(false);
     const [selectedRole, setSelectedRole] = useState(null);
     const [form] = Form.useForm();
 
@@ -52,7 +112,7 @@ export default function Roles() {
         'Self Tasks Tab Filters': ['filterSelfTasksDepartment', 'filterSelfTasksPriority', 'filterSelfTasksRole', 'filterSelfTasksUser'],
         'Approvals': ['viewApprovals', 'approveRejectTasks'],
         'Reports': ['viewReports', 'downloadReports'],
-        'Role Management': ['viewRoles', 'createRoles', 'editRoles', 'deleteRoles'],
+        'Role Management': ['viewRoles', 'createRoles', 'deleteRoles'],
     };
 
     const permissionLabels = {
@@ -105,7 +165,6 @@ export default function Roles() {
         downloadReports: 'Download Reports',
         viewRoles: 'View Roles',
         createRoles: 'Create Roles',
-        editRoles: 'Edit Roles',
         deleteRoles: 'Delete Roles',
     };
 
@@ -113,26 +172,6 @@ export default function Roles() {
         setSelectedRole(null);
         form.resetFields();
         setShowCreateModal(true);
-    };
-
-    const handleEditRole = (role) => {
-        setSelectedRole(role);
-        const formValues = {
-            name: role.name,
-            displayName: role.displayName,
-            description: role.description,
-            ...role.permissions
-        };
-
-        // Add managedRoles as checkbox values
-        if (role.managedRoles && Array.isArray(role.managedRoles)) {
-            role.managedRoles.forEach(managedRoleId => {
-                formValues[`managedRole_${managedRoleId}`] = true;
-            });
-        }
-
-        form.setFieldsValue(formValues);
-        setShowEditModal(true);
     };
 
     const handleDeleteRole = (roleId, roleName) => {
@@ -179,16 +218,10 @@ export default function Roles() {
                 managedRoles
             };
 
-            if (showEditModal && selectedRole) {
-                await api.put(`/roles/${selectedRole._id}`, roleData);
-                showToast('Role updated successfully', 'success');
-            } else {
-                await api.post('/roles', roleData);
-                showToast('Role created successfully', 'success');
-            }
+            await api.post('/roles', roleData);
+            showToast('Role created successfully', 'success');
 
             setShowCreateModal(false);
-            setShowEditModal(false);
             fetchRoles();
         } catch (error) {
             showToast(error.response?.data?.error || 'Failed to save role', 'error');
@@ -219,14 +252,7 @@ export default function Roles() {
     const customRoles = sortedRoles => totalRoles - systemRoles;
 
     if (loading) {
-        return (
-            <div className="flex items-center justify-center min-h-screen">
-                <div className="text-center">
-                    <div className="w-16 h-16 border-4 border-primary border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
-                    <p className="text-gray-600">Loading roles...</p>
-                </div>
-            </div>
-        );
+        return <RolesSkeleton />;
     }
 
     // Access Denied UI
@@ -350,27 +376,20 @@ export default function Roles() {
                                 </span>
                             </div>
 
-                            {!role.isStatic && user?.permissions?.editRoles && (
-                                <div className="flex gap-3">
+                            {!role.isStatic && user?.permissions?.deleteRoles && (
+                                <div className="flex">
                                     <Button
-                                        onClick={() => handleEditRole(role)}
-                                        className="flex-1 h-10 flex items-center justify-center gap-2 border-primary text-primary hover:bg-primary-50 rounded-xl font-semibold"
-                                        icon={<Edit2 className="w-4 h-4" />}
+                                        danger
+                                        onClick={() => handleDeleteRole(role._id, role.displayName)}
+                                        className="w-full h-10 rounded-xl hover:bg-red-50 flex items-center justify-center gap-2"
+                                        icon={<Trash2 className="w-4 h-4" />}
                                     >
-                                        Edit
+                                        Delete
                                     </Button>
-                                    {user?.permissions?.deleteRoles && (
-                                        <Button
-                                            danger
-                                            onClick={() => handleDeleteRole(role._id, role.displayName)}
-                                            className="h-10 px-4 rounded-xl hover:bg-red-50"
-                                            icon={<Trash2 className="w-4 h-4" />}
-                                        />
-                                    )}
                                 </div>
                             )}
-                            {/* Placeholder for alignment if no actions */}
-                            {(role.isStatic || (!user?.permissions?.editRoles)) && (
+
+                            {!role.isStatic && !user?.permissions?.deleteRoles && (
                                 <div className="h-10 flex items-center justify-center text-xs text-gray-400 italic">
                                     Read Only
                                 </div>
@@ -392,12 +411,11 @@ export default function Roles() {
 
             {/* Create/Edit Modal */}
             <Modal
-                isOpen={showCreateModal || showEditModal}
+                isOpen={showCreateModal}
                 onClose={() => {
                     setShowCreateModal(false);
-                    setShowEditModal(false);
                 }}
-                title={showEditModal ? 'Edit Role' : 'Create New Role'}
+                title="Create New Role"
                 size="large"
             >
                 <Form
@@ -519,7 +537,6 @@ export default function Roles() {
                             className="flex-1 h-11 rounded-xl cancel-btn"
                             onClick={() => {
                                 setShowCreateModal(false);
-                                setShowEditModal(false);
                             }}
                         >
                             Cancel
@@ -529,7 +546,7 @@ export default function Roles() {
                             htmlType="submit"
                             className="flex-1 bg-primary hover:bg-primary-600 h-11 rounded-xl font-semibold text-white"
                         >
-                            {showEditModal ? 'Update Role' : 'Create Role'}
+                            Create Role
                         </Button>
                     </div>
                 </Form>

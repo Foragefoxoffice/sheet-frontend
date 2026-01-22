@@ -1,12 +1,83 @@
 import { useState, useEffect } from 'react';
 import { Building2, UserPlus, Users, Edit, Trash2, Search as SearchIcon, LayoutGrid, CheckCircle2 } from 'lucide-react';
-import { Input, Button, Modal as AntModal } from 'antd';
+import { Input, Button, Modal as AntModal, Skeleton } from 'antd';
 import { useAuth } from '../hooks/useAuth';
 import Modal from '../components/common/Modal';
 import CreateDepartmentForm from '../components/features/departments/CreateDepartmentForm';
 import StatCard from '../components/common/StatCard';
 import api from '../utils/api';
 import { showToast } from '../utils/helpers';
+
+function DepartmentsSkeleton() {
+    return (
+        <div className="space-y-6">
+            {/* Header */}
+            <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4 bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
+                <div className="w-full md:w-auto">
+                    <Skeleton active title={{ width: 200 }} paragraph={{ rows: 1, width: 300 }} />
+                </div>
+                <div className="hidden md:block">
+                    <Skeleton.Button active size="large" style={{ width: 180, borderRadius: '0.75rem' }} />
+                </div>
+            </div>
+
+            {/* Stats Cards */}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                {[1, 2, 3].map((i) => (
+                    <div key={i} className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100 relative overflow-hidden">
+                        <div className="flex items-start justify-between">
+                            <div className="flex-1">
+                                <Skeleton active title={{ width: 100, size: 'small' }} paragraph={{ rows: 1, width: 60 }} />
+                            </div>
+                            <Skeleton.Avatar active size={48} shape="square" className="rounded-xl" />
+                        </div>
+                    </div>
+                ))}
+            </div>
+
+            {/* Search Section */}
+            <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
+                <Skeleton.Input active size="large" block style={{ borderRadius: '0.75rem', height: 48 }} />
+            </div>
+
+            {/* Departments Grid */}
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                {[1, 2, 3, 4, 5, 6].map((i) => (
+                    <div key={i} className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100">
+                        <div className="flex items-start justify-between mb-6">
+                            <Skeleton.Avatar active size={56} shape="square" className="rounded-2xl" />
+                            <Skeleton.Button active size="small" shape="round" style={{ width: 70 }} />
+                        </div>
+
+                        <div className="mb-6">
+                            <Skeleton active title={{ width: '70%', marginBottom: 12 }} paragraph={{ rows: 2 }} />
+                        </div>
+
+                        <div className="space-y-4 mb-6 p-4 bg-gray-50 rounded-xl border border-gray-100">
+                            <div className="flex items-center gap-3">
+                                <Skeleton.Avatar active size={32} shape="circle" />
+                                <div className="flex-1">
+                                    <Skeleton active title={false} paragraph={{ rows: 1, width: '60%' }} />
+                                </div>
+                            </div>
+                            <div className="flex items-center gap-3">
+                                <Skeleton.Avatar active size={32} shape="circle" />
+                                <div className="flex-1">
+                                    <Skeleton active title={false} paragraph={{ rows: 1, width: '40%' }} />
+                                </div>
+                            </div>
+                        </div>
+
+                        <div className="flex gap-3">
+                            <Skeleton.Button active block style={{ flex: 1, borderRadius: '0.75rem' }} />
+                            <Skeleton.Button active style={{ width: 40, borderRadius: '0.75rem' }} />
+                        </div>
+                    </div>
+                ))}
+            </div>
+        </div>
+    );
+}
 
 export default function Departments() {
     const { user } = useAuth();
@@ -107,6 +178,10 @@ export default function Departments() {
     const canDeleteDepartment = user?.permissions?.deleteDepartments &&
         ['superadmin', 'director'].includes(userRoleName);
 
+    if (loading) {
+        return <DepartmentsSkeleton />;
+    }
+
     return (
         <div className="space-y-6">
             {/* Header */}
@@ -170,14 +245,7 @@ export default function Departments() {
             </div>
 
             {/* Content */}
-            {loading ? (
-                <div className="flex items-center justify-center py-12">
-                    <div className="text-center">
-                        <div className="w-16 h-16 border-4 border-primary border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
-                        <p className="text-gray-600">Loading departments...</p>
-                    </div>
-                </div>
-            ) : filteredDepartments.length === 0 ? (
+            {filteredDepartments.length === 0 ? (
                 <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-12 text-center">
                     <div className="w-20 h-20 bg-gray-50 rounded-full flex items-center justify-center mx-auto mb-6">
                         <Building2 className="w-10 h-10 text-gray-400" />

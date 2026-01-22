@@ -1,7 +1,7 @@
 import { useState, useEffect, useMemo } from 'react';
-import { Select, DatePicker, TimePicker, Input, Checkbox, Button, Form, Pagination, Modal as AntModal } from 'antd';
+import { Select, DatePicker, TimePicker, Input, Checkbox, Button, Form, Pagination, Modal as AntModal, Skeleton } from 'antd';
 import dayjs from 'dayjs';
-import { CheckCircle2, Clock, ListTodo, Plus, Search, ArrowUpDown, Filter, X, Users, Send, Target, CheckSquare, Briefcase, LayoutGrid } from 'lucide-react';
+import { CheckCircle2, ListTodo, Plus, Search, Filter, Users, Send, Target, Briefcase, LayoutGrid } from 'lucide-react';
 import { useAuth } from '../hooks/useAuth';
 import TaskCard from '../components/common/TaskCard';
 import Modal from '../components/common/Modal';
@@ -9,6 +9,130 @@ import StatCard from '../components/common/StatCard';
 import api from '../utils/api';
 import { showToast } from '../utils/helpers';
 import { TASK_STATUS } from '../utils/taskHelpers';
+
+function TaskGridSkeleton({ count = 12 }) {
+    return (
+        <>
+            <div className="grid grid-cols-1 pt-0 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                {Array.from({ length: count }).map((_, idx) => (
+                    <div key={idx} className="bg-white rounded-2xl shadow-sm border border-gray-100 p-5">
+                        <div className="flex items-start justify-between gap-4">
+                            <div className="flex-1">
+                                <Skeleton
+                                    active
+                                    title={{ width: '70%' }}
+                                    paragraph={{ rows: 3, width: ['90%', '80%', '60%'] }}
+                                />
+                            </div>
+                            <Skeleton.Avatar active size={44} shape="square" />
+                        </div>
+                        <div className="mt-4 flex items-center justify-between gap-3">
+                            <Skeleton active title={false} paragraph={{ rows: 1, width: 120 }} />
+                            <Skeleton.Button active size="small" style={{ width: 96, height: 28 }} />
+                        </div>
+                    </div>
+                ))}
+            </div>
+
+            <div className="mt-8 flex justify-center">
+                <div className="bg-white rounded-xl border border-gray-100 px-6 py-4 shadow-sm">
+                    <Skeleton active title={false} paragraph={{ rows: 1, width: 260 }} />
+                </div>
+            </div>
+        </>
+    );
+}
+
+function AllTasksSkeleton({
+    canCreateTask,
+    statCardCount,
+    viewTabCount,
+    pageSize,
+    filterSelectCount = 3,
+}) {
+    return (
+        <div className="space-y-6">
+            {/* Header skeleton */}
+            <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4 bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
+                <div className="w-full md:w-auto">
+                    <Skeleton active title={{ width: 220 }} paragraph={{ rows: 1, width: 360 }} />
+                </div>
+                <div className="w-full md:w-auto">
+                    {canCreateTask ? (
+                        <Skeleton.Button active style={{ width: 180, height: 44, borderRadius: 12 }} />
+                    ) : (
+                        <Skeleton active title={false} paragraph={false} />
+                    )}
+                </div>
+            </div>
+
+            {/* Stats cards skeleton */}
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+                {Array.from({ length: statCardCount }).map((_, idx) => (
+                    <div key={idx} className="bg-white rounded-2xl shadow-sm border border-gray-100 p-5">
+                        <div className="flex items-start justify-between gap-4">
+                            <div className="flex-1">
+                                <Skeleton active title={{ width: 140 }} paragraph={{ rows: 2, width: ['60%', '40%'] }} />
+                            </div>
+                            <Skeleton.Avatar active size={44} shape="square" />
+                        </div>
+                    </div>
+                ))}
+            </div>
+
+            {/* Tabs + filters skeleton */}
+            <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 mb-6">
+                <div className="flex flex-col gap-5">
+                    {/* View tabs skeleton */}
+                    <div className="flex flex-wrap gap-3 overflow-x-auto nice-scrollbar pb-1">
+                        {Array.from({ length: viewTabCount }).map((_, idx) => (
+                            <Skeleton.Button
+                                key={idx}
+                                active
+                                size="small"
+                                style={{ width: 140, height: 40, borderRadius: 12 }}
+                            />
+                        ))}
+                    </div>
+
+                    {/* Status pills skeleton */}
+                    <div className="flex flex-wrap gap-2 overflow-x-auto nice-scrollbar">
+                        {Array.from({ length: 5 }).map((_, idx) => (
+                            <Skeleton.Button
+                                key={idx}
+                                active
+                                size="small"
+                                style={{ width: 120, height: 36, borderRadius: 10 }}
+                            />
+                        ))}
+                    </div>
+                </div>
+
+                {/* Search + selects skeleton */}
+                <div className="mt-6 flex flex-col gap-4">
+                    <div className="h-px bg-gray-100 w-full" />
+                    <div className="flex flex-col md:flex-row items-center gap-4">
+                        <div className="w-full md:flex-1">
+                            <Skeleton.Input active style={{ width: '100%', height: 44, borderRadius: 12 }} />
+                        </div>
+                        <div className="w-full md:w-auto flex flex-wrap items-center gap-3">
+                            {Array.from({ length: filterSelectCount }).map((_, idx) => (
+                                <Skeleton.Input
+                                    key={idx}
+                                    active
+                                    style={{ width: 160, height: 32, borderRadius: 10 }}
+                                />
+                            ))}
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            {/* Task grid skeleton */}
+            <TaskGridSkeleton count={pageSize} />
+        </div>
+    );
+}
 
 export default function AllTasks() {
     const { user } = useAuth();
@@ -148,19 +272,34 @@ export default function AllTasks() {
     const fetchAllTasks = async () => {
         try {
             setLoading(true);
-            // Fetch all four types of tasks
-            const [assignedToMe, iAssigned, selfTasks, allDeptTasks] = await Promise.all([
-                api.get('/tasks'),
-                api.get('/tasks/assigned'),
-                api.get('/tasks/self'),
-                api.get('/tasks/all'),
-            ]);
+
+            // Optimized: Fetch all relevant tasks in one call
+            // The backend /tasks/all endpoint now handles all RBAC scenarios correctly
+            const response = await api.get('/tasks/all');
+            const allFetchedTasks = response.data.tasks || [];
+
+            // Filter tasks into categories client-side to avoid multiple API calls
+            const assignedToMe = allFetchedTasks.filter(task =>
+                task.assignedTo?.email === user?.email &&
+                task.createdBy?.email !== user?.email
+            );
+
+            const iAssigned = allFetchedTasks.filter(task =>
+                task.createdBy?.email === user?.email &&
+                task.assignedTo?.email !== user?.email
+            );
+
+            const selfTasks = allFetchedTasks.filter(task =>
+                task.isSelfTask &&
+                task.createdBy?.email === user?.email &&
+                task.assignedTo?.email === user?.email
+            );
 
             setAllTasks({
-                assignedToMe: assignedToMe.data.tasks || [],
-                iAssigned: iAssigned.data.tasks || [],
-                selfTasks: selfTasks.data.tasks || [],
-                allDeptTasks: allDeptTasks.data.tasks || [],
+                assignedToMe,
+                iAssigned,
+                selfTasks,
+                allDeptTasks: allFetchedTasks, // This serves as the source for 'all-tasks' and 'department-tasks' views
             });
         } catch (error) {
             console.error('Error fetching tasks:', error);
@@ -179,7 +318,7 @@ export default function AllTasks() {
             cancelText: 'Cancel',
             onOk: async () => {
                 try {
-                    const response = await api.patch(`/ tasks / ${taskId}/status`, {
+                    const response = await api.patch(`/tasks/${taskId}/status`, {
                         status: newStatus
                     });
 
@@ -522,8 +661,32 @@ export default function AllTasks() {
         iAssigned: allTasks.iAssigned?.length || 0,
         selfTasks: allTasks.selfTasks?.length || 0,
         allDeptTasks: allTasks.allDeptTasks?.length || 0,
-        total: (allTasks.assignedToMe?.length || 0) + (allTasks.iAssigned?.length || 0) + (allTasks.selfTasks?.length || 0),
+        total: allTasks.allDeptTasks?.length || 0,
     };
+
+    if (loading) {
+        const statCardCount =
+            1 +
+            (canViewAssignedToMe ? 1 : 0) +
+            (canViewIAssigned ? 1 : 0) +
+            (canViewSelfTasks ? 1 : 0);
+
+        const viewTabCount =
+            (canViewAssignedToMe ? 1 : 0) +
+            (canViewIAssigned ? 1 : 0) +
+            (canViewSelfTasks ? 1 : 0) +
+            (canViewAllTasks ? 1 : 0) +
+            (canViewDeptTasks ? 1 : 0);
+
+        return (
+            <AllTasksSkeleton
+                canCreateTask={canCreateTask}
+                statCardCount={Math.max(1, statCardCount)}
+                viewTabCount={Math.max(2, viewTabCount)}
+                pageSize={pageSize}
+            />
+        );
+    }
 
     return (
         <div className="space-y-6">
@@ -915,14 +1078,7 @@ export default function AllTasks() {
             </div>
 
             {/* Task List */}
-            {loading ? (
-                <div className="flex items-center justify-center py-12">
-                    <div className="text-center">
-                        <div className="w-16 h-16 border-4 border-primary border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
-                        <p className="text-gray-600">Loading tasks...</p>
-                    </div>
-                </div>
-            ) : sortedTasks.length === 0 ? (
+            {sortedTasks.length === 0 ? (
                 <div className="bg-white rounded-card shadow-card p-12 text-center">
                     <ListTodo className="w-16 h-16 text-gray-400 mx-auto mb-4" />
                     <h3 className="text-lg font-semibold text-gray-900 mb-2">No tasks found</h3>

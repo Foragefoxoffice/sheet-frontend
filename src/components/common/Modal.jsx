@@ -81,7 +81,7 @@ export default function Modal({ isOpen, onClose, title, children, size = 'medium
                     </div>
 
                     {/* Body */}
-                    <div className="px-3 md:px-8 py-3 md:py-8 overflow-y-auto nice-scrollbar flex-1 bg-gradient-to-b from-white to-gray-50/30">
+                    <div className="px-3 md:px-8 py-3 md:py-4 overflow-y-auto nice-scrollbar flex-1 bg-gradient-to-b from-white to-gray-50/30">
                         {children}
                     </div>
 

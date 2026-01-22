@@ -4,7 +4,7 @@ import {
     BarChart3, PieChart, LayoutGrid, CheckCircle2,
     Clock, AlertCircle, Briefcase, ArrowDownToLine
 } from 'lucide-react';
-import { DatePicker, Button, Table, Card } from 'antd';
+import { DatePicker, Button, Table, Card, Skeleton } from 'antd';
 import { PieChart as RechartsPie, Pie, Cell, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 import dayjs from 'dayjs';
 import { useAuth } from '../hooks/useAuth';
@@ -13,6 +13,86 @@ import { showToast, formatDate } from '../utils/helpers';
 import StatCard from '../components/common/StatCard';
 
 const { RangePicker } = DatePicker;
+
+function ReportsSkeleton() {
+    return (
+        <div className="space-y-6">
+            {/* Header & Filter */}
+            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-white p-5 rounded-2xl shadow-sm border border-gray-100">
+                <div className="w-full md:w-auto">
+                    <Skeleton active title={{ width: 260 }} paragraph={{ rows: 1, width: 340 }} />
+                </div>
+                <div className="w-full md:w-[340px]">
+                    <div className="flex items-center gap-3 bg-gray-50 p-1.5 rounded-xl border border-gray-200">
+                        <div className="pl-3 pr-2 border-r border-gray-200">
+                            <Skeleton.Avatar active size={20} shape="circle" />
+                        </div>
+                        <div className="flex-1 pr-2">
+                            <Skeleton active title={false} paragraph={{ rows: 1, width: '100%' }} />
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            {/* Statistics Grid */}
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
+                {Array.from({ length: 5 }).map((_, idx) => (
+                    <div key={idx} className="bg-white rounded-2xl shadow-sm border border-gray-100 p-5">
+                        <div className="flex items-start justify-between gap-4">
+                            <div className="flex-1">
+                                <Skeleton active title={{ width: 120 }} paragraph={{ rows: 2, width: ['60%', '40%'] }} />
+                            </div>
+                            <Skeleton.Avatar active size={44} shape="square" />
+                        </div>
+                    </div>
+                ))}
+            </div>
+
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                {/* Export card */}
+                <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 h-full">
+                    <Skeleton active title={{ width: 200 }} paragraph={{ rows: 1, width: 240 }} />
+                    <div className="mt-6 space-y-4">
+                        {Array.from({ length: 2 }).map((_, idx) => (
+                            <div key={idx} className="w-full flex items-start gap-4 p-4 rounded-xl border border-gray-200 bg-gray-50/30">
+                                <Skeleton.Avatar active size={44} shape="square" />
+                                <div className="flex-1">
+                                    <Skeleton active title={{ width: 160 }} paragraph={{ rows: 1, width: 180 }} />
+                                </div>
+                            </div>
+                        ))}
+                    </div>
+                </div>
+
+                {/* Charts card */}
+                <div className="lg:col-span-2 bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
+                    <Skeleton active title={{ width: 200 }} paragraph={{ rows: 1, width: 180 }} />
+                    <div className="mt-6 grid grid-cols-1 md:grid-cols-2 gap-6 items-center">
+                        <div className="flex items-center justify-center h-[300px]">
+                            <Skeleton.Avatar active size={220} shape="circle" />
+                        </div>
+                        <div className="h-[300px] flex flex-col justify-center">
+                            <Skeleton active title={false} paragraph={{ rows: 8, width: ['90%', '80%', '85%', '70%', '88%', '76%', '82%', '66%'] }} />
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            {/* Performance section skeleton */}
+            <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
+                <Skeleton active title={{ width: 240 }} paragraph={{ rows: 1, width: 280 }} />
+                <div className="mt-6 grid grid-cols-1 lg:grid-cols-3 gap-8">
+                    <div className="lg:col-span-1 h-[400px] flex items-center justify-center">
+                        <Skeleton.Image style={{ width: '100%', height: 320 }} />
+                    </div>
+                    <div className="lg:col-span-2">
+                        <Skeleton active title={false} paragraph={{ rows: 8, width: ['100%', '95%', '90%', '92%', '88%', '94%', '85%', '80%'] }} />
+                    </div>
+                </div>
+            </div>
+        </div>
+    );
+}
 
 export default function Reports() {
     const { user } = useAuth();
@@ -41,8 +121,9 @@ export default function Reports() {
         try {
             setLoading(true);
 
+            // Use unified endpoint for all task data
             const [tasksRes, usersRes] = await Promise.all([
-                api.get('/tasks/assigned'),
+                api.get('/tasks/all'),
                 api.get('/users/for-tasks'),
             ]);
 
@@ -217,12 +298,7 @@ export default function Reports() {
 
     if (loading) {
         return (
-            <div className="flex items-center justify-center min-h-screen">
-                <div className="text-center">
-                    <div className="w-16 h-16 border-4 border-primary border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
-                    <p className="text-gray-600">Loading reports...</p>
-                </div>
-            </div>
+            <ReportsSkeleton />
         );
     }
 
@@ -423,7 +499,7 @@ export default function Reports() {
 
                     <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
                         {/* Top 5 Chart */}
-                        <div className="lg:col-span-1 h-[400px]">
+                        <div className="lg:col-span-1 md:h-[200px] h-[100px]">
                             <ResponsiveContainer width="100%" height="100%">
                                 <BarChart data={topPerformers.slice(0, 5)} layout="vertical" margin={{ left: 0 }}>
                                     <CartesianGrid strokeDasharray="3 3" horizontal={true} vertical={false} stroke="#E5E7EB" />

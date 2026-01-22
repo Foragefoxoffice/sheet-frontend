@@ -1,5 +1,5 @@
 import { Users as UsersIcon, UserPlus, Mail, Phone, Search as SearchIcon, Edit, Trash2, Building2, Shield } from 'lucide-react';
-import { Input, Select, Button, Tabs } from 'antd';
+import { Input, Select, Button, Tabs, Skeleton } from 'antd';
 import { useState, useEffect } from 'react';
 import { useAuth } from '../hooks/useAuth';
 import Modal from '../components/common/Modal';
@@ -8,12 +8,95 @@ import EditUserForm from '../components/features/users/EditUserForm';
 import StatCard from '../components/common/StatCard';
 import api from '../utils/api';
 
+function UsersSkeleton() {
+    return (
+        <div>
+            {/* Header skeleton */}
+            <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4 bg-white p-6 rounded-2xl shadow-sm border border-gray-100 mb-6">
+                <div className="w-full md:w-auto">
+                    <Skeleton active title={{ width: 220 }} paragraph={{ rows: 1, width: 340 }} />
+                </div>
+                <div className="w-full md:w-auto">
+                    <Skeleton.Button active style={{ width: 180, height: 44, borderRadius: 12 }} />
+                </div>
+            </div>
+
+            {/* Stats cards skeleton */}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
+                {Array.from({ length: 3 }).map((_, idx) => (
+                    <div key={idx} className="bg-white rounded-2xl shadow-sm border border-gray-100 p-5">
+                        <div className="flex items-start justify-between gap-4">
+                            <div className="flex-1">
+                                <Skeleton active title={{ width: 140 }} paragraph={{ rows: 2, width: ['60%', '40%'] }} />
+                            </div>
+                            <Skeleton.Avatar active size={44} shape="square" />
+                        </div>
+                    </div>
+                ))}
+            </div>
+
+            {/* Filters skeleton */}
+            <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 mb-8">
+                <div className="flex flex-col gap-6">
+                    <div className="flex flex-wrap items-center gap-2 overflow-x-auto pb-2">
+                        {Array.from({ length: 4 }).map((_, idx) => (
+                            <Skeleton.Button key={idx} active size="small" style={{ width: 140, height: 40, borderRadius: 12 }} />
+                        ))}
+                    </div>
+                    <div className="h-px bg-gray-100" />
+                    <div className="flex flex-col md:flex-row items-center gap-4">
+                        <div className="flex-1 w-full">
+                            <Skeleton.Input active style={{ width: '100%', height: 48, borderRadius: 12 }} />
+                        </div>
+                        <div className="w-full md:w-[280px]">
+                            <Skeleton.Input active style={{ width: '100%', height: 48, borderRadius: 12 }} />
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            {/* Users grid skeleton */}
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                {Array.from({ length: 9 }).map((_, idx) => (
+                    <div key={idx} className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100">
+                        <div className="flex items-start justify-between mb-3 gap-4">
+                            <Skeleton.Avatar active size={64} shape="square" />
+                            <div className="flex flex-col items-end gap-2">
+                                <Skeleton.Button active size="small" style={{ width: 110, height: 22, borderRadius: 999 }} />
+                                <Skeleton.Button active size="small" style={{ width: 90, height: 22, borderRadius: 999 }} />
+                            </div>
+                        </div>
+
+                        <div className="mb-3">
+                            <Skeleton active title={{ width: '70%' }} paragraph={{ rows: 1, width: '50%' }} />
+                        </div>
+
+                        <div className="bg-gray-50 rounded-xl p-4 border border-gray-100">
+                            <Skeleton active title={false} paragraph={{ rows: 2, width: ['90%', '70%'] }} />
+                        </div>
+
+                        <div className="mt-6 flex gap-3 pt-2">
+                            <Skeleton.Button active style={{ flex: 1, height: 40, borderRadius: 12 }} />
+                            <Skeleton.Button active style={{ width: 56, height: 40, borderRadius: 12 }} />
+                        </div>
+                    </div>
+                ))}
+            </div>
+        </div>
+    );
+}
+
 export default function Users() {
     const { user } = useAuth();
     const [users, setUsers] = useState([]);
     const [departments, setDepartments] = useState([]);
-    const [roles, setRoles] = useState([]); // Add roles state
+    const [roles, setRoles] = useState([]);
     const [loading, setLoading] = useState(true);
+    const [page, setPage] = useState(1);
+    const [hasMore, setHasMore] = useState(true);
+    const [loadingMore, setLoadingMore] = useState(false);
+
+    // ... existing states ...
     const [activeTab, setActiveTab] = useState('all');
     const [searchQuery, setSearchQuery] = useState('');
     const [departmentFilter, setDepartmentFilter] = useState('all');
@@ -23,27 +106,75 @@ export default function Users() {
 
     useEffect(() => {
         const loadData = async () => {
-            await fetchUsers();
+            setLoading(true);
+            await fetchUsers(1);
             await fetchDepartments();
+            setLoading(false);
         };
         loadData();
     }, []);
 
+    // Infinite scroll listener
     useEffect(() => {
-        // Fetch roles after users are loaded
-        if (users.length > 0) {
+        const handleScroll = () => {
+            if (
+                window.innerHeight + document.documentElement.scrollTop >=
+                document.documentElement.offsetHeight - 100 &&
+                hasMore &&
+                !loading &&
+                !loadingMore
+            ) {
+                setPage(prev => prev + 1);
+            }
+        };
+
+        window.addEventListener('scroll', handleScroll);
+        return () => window.removeEventListener('scroll', handleScroll);
+    }, [hasMore, loading, loadingMore]);
+
+    // Fetch more when page changes
+    useEffect(() => {
+        if (page > 1) {
+            fetchUsers(page);
+        }
+    }, [page]);
+
+    useEffect(() => {
+        // Fetch roles after users are loaded (only on initial load or if improved logic needed)
+        // Keeping this simple to avoid refreshing roles constantly
+        if (users.length > 0 && roles.length === 0) {
             fetchRoles();
         }
     }, [users.length]);
 
-    const fetchUsers = async () => {
+    const fetchUsers = async (pageNum) => {
         try {
-            const response = await api.get('/users');
-            setUsers(response.data.users || []);
+            if (pageNum === 1) {
+                // Initial load
+            } else {
+                setLoadingMore(true);
+            }
+
+            const response = await api.get(`/users?page=${pageNum}&limit=10`);
+            const newUsers = response.data.users || [];
+
+            if (pageNum === 1) {
+                setUsers(newUsers);
+            } else {
+                setUsers(prev => {
+                    // Filter out duplicates just in case
+                    const existingIds = new Set(prev.map(u => u._id));
+                    const uniqueNewUsers = newUsers.filter(u => !existingIds.has(u._id));
+                    return [...prev, ...uniqueNewUsers];
+                });
+            }
+
+            setHasMore(response.data.pagination?.hasMore || false);
         } catch (error) {
             console.error('Error fetching users:', error);
         } finally {
-            setLoading(false);
+            if (pageNum === 1) setLoading(false);
+            setLoadingMore(false);
         }
     };
 
@@ -188,6 +319,11 @@ export default function Users() {
         );
     }
 
+    // Show skeleton for the full page (header, stats, filters, grid)
+    if (loading) {
+        return <UsersSkeleton />;
+    }
+
     return (
         <div>
             {/* Header */}
@@ -289,14 +425,7 @@ export default function Users() {
             </div>
 
             {/* Content */}
-            {loading ? (
-                <div className="flex items-center justify-center py-12">
-                    <div className="text-center">
-                        <div className="w-16 h-16 border-4 border-primary border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
-                        <p className="text-gray-600">Loading users...</p>
-                    </div>
-                </div>
-            ) : filteredUsers.length === 0 ? (
+            {filteredUsers.length === 0 ? (
                 <div className="bg-white rounded-card shadow-card p-12 text-center">
                     <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
                         <UsersIcon className="w-8 h-8 text-gray-400" />
@@ -385,6 +514,15 @@ export default function Users() {
                             </div>
                         </div>
                     ))}
+                </div>
+            )}
+
+            {loadingMore && (
+                <div className="py-8 flex justify-center">
+                    <div className="flex flex-col items-center gap-2">
+                        <div className="w-8 h-8 border-4 border-[#253094] border-t-transparent rounded-full animate-spin"></div>
+                        <p className="text-sm text-gray-500 font-medium">Loading more members...</p>
+                    </div>
                 </div>
             )}
 
