@@ -159,7 +159,7 @@ export default function Users() {
                 setLoadingMore(true);
             }
 
-            const response = await api.get(`/users?page=${pageNum}&limit=10`);
+            const response = await api.get(`/users?page=${pageNum}&limit=1000`);
             const newUsers = response.data.users || [];
 
             if (pageNum === 1) {

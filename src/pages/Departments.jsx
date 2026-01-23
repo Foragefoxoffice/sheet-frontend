@@ -4,6 +4,7 @@ import { Input, Button, Modal as AntModal, Skeleton } from 'antd';
 import { useAuth } from '../hooks/useAuth';
 import Modal from '../components/common/Modal';
 import CreateDepartmentForm from '../components/features/departments/CreateDepartmentForm';
+import EditDepartmentForm from '../components/features/departments/EditDepartmentForm';
 import DeleteConfirmationModal from '../components/common/DeleteConfirmationModal';
 import StatCard from '../components/common/StatCard';
 import api from '../utils/api';
@@ -87,8 +88,10 @@ export default function Departments() {
     const [loading, setLoading] = useState(true);
     const [searchQuery, setSearchQuery] = useState('');
     const [showCreateModal, setShowCreateModal] = useState(false);
+    const [showEditModal, setShowEditModal] = useState(false);
     const [showDeleteModal, setShowDeleteModal] = useState(false);
     const [deptToDelete, setDeptToDelete] = useState(null);
+    const [deptToEdit, setDeptToEdit] = useState(null);
 
     useEffect(() => {
         fetchDepartments();
@@ -123,6 +126,18 @@ export default function Departments() {
         setDepartments(prev => [newDepartment, ...prev]);
         setShowCreateModal(false);
         fetchDepartments(); // Refresh the list
+    };
+
+    const handleEdit = (dept) => {
+        setDeptToEdit(dept);
+        setShowEditModal(true);
+    };
+
+    const handleEditSuccess = (updatedDept) => {
+        setDepartments(prev => prev.map(d => d._id === updatedDept._id ? updatedDept : d));
+        setShowEditModal(false);
+        setDeptToEdit(null);
+        fetchDepartments();
     };
 
     const handleDelete = (id) => {
@@ -323,10 +338,7 @@ export default function Departments() {
                                 <div className="flex gap-3 pt-2">
                                     {canEditDepartment && (
                                         <Button
-                                            onClick={() => {
-                                                // Handle edit logic here, assuming a method or pass to modal
-                                                showToast('Edit functionality coming soon', 'info');
-                                            }}
+                                            onClick={() => handleEdit(dept)}
                                             className="flex-1 h-10 flex items-center justify-center gap-2 border-primary text-primary hover:bg-primary-50 rounded-xl font-semibold"
                                             icon={<Edit className="w-4 h-4" />}
                                         >
@@ -358,6 +370,25 @@ export default function Departments() {
                     onSuccess={handleCreateSuccess}
                     onCancel={() => setShowCreateModal(false)}
                     managers={managers}
+                />
+            </Modal>
+
+            {/* Edit Department Modal */}
+            <Modal
+                isOpen={showEditModal}
+                onClose={() => {
+                    setShowEditModal(false);
+                    setDeptToEdit(null);
+                }}
+                title="Edit Department"
+            >
+                <EditDepartmentForm
+                    department={deptToEdit}
+                    onSuccess={handleEditSuccess}
+                    onCancel={() => {
+                        setShowEditModal(false);
+                        setDeptToEdit(null);
+                    }}
                 />
             </Modal>
 
