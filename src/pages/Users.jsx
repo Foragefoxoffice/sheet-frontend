@@ -268,6 +268,13 @@ export default function Users() {
         const roleName = role?.name || role;
         const roleLevel = role?.level || 0;
 
+        const displayName = role?.displayName || roleName;
+
+        // Specific color for Main Director
+        if (roleName === 'Main Director' || displayName === 'Main Director' || displayName === 'Director (MD)') {
+            return 'bg-indigo-100 text-indigo-700';
+        }
+
         // Color based on role level for dynamic roles
         if (roleLevel >= 5) return 'bg-gradient-to-r from-purple-500 to-pink-500 text-white'; // Super Admin
         if (roleLevel >= 4) return 'bg-purple-100 text-purple-700'; // Director level
