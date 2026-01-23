@@ -376,7 +376,7 @@ export default function Roles() {
                                 </span>
                             </div>
 
-                            {!role.isStatic && user?.permissions?.deleteRoles && (
+                            {!role.isStatic && role.name !== 'superadmin' && user?.permissions?.deleteRoles && (
                                 <div className="flex">
                                     <Button
                                         danger

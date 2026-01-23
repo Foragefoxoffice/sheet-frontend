@@ -829,7 +829,7 @@ export default function MyTasks() {
                                     <Button
                                         type="primary"
                                         onClick={handleAddComment}
-                                        className="self-end"
+                                        className="self-end create-user-btn"
                                     >
                                         Add
                                     </Button>

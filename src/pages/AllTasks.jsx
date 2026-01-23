@@ -448,17 +448,11 @@ export default function AllTasks() {
         try {
             let fetchedUsers = [];
 
-            // 1. Fetch all users using the robust /users API
-            if (user?.permissions?.viewUsers) {
-                const response = await api.get('/users?limit=1000');
-                fetchedUsers = response.data.users || [];
-                setUsers(fetchedUsers);
-            } else {
-                // Fallback for users without viewUsers permission (e.g. basic staff)
-                const response = await api.get('/users/for-tasks');
-                fetchedUsers = response.data.users || [];
-                setUsers(fetchedUsers);
-            }
+            // Always use the task-specific endpoint to ensure correct assignment logic
+            // This ensures Department Heads and others see the correct list of assignable users
+            const response = await api.get('/users/for-tasks');
+            fetchedUsers = response.data.users || [];
+            setUsers(fetchedUsers);
 
             // 2. Filter assignable users based on Role (Frontend Mirror of Backend Logic)
             // This ensures we show the correct options even if the specific backend endpoint misses some
@@ -481,14 +475,9 @@ export default function AllTasks() {
                 });
             }
             else if (currentUserRole === 'manager' || currentUserRole === 'departmenthead') {
-                validAssignees = fetchedUsers.filter(u => {
-                    const uDeptId = u.department?._id || u.department;
-                    const myDeptId = user.department?._id || user.department;
-                    if (uDeptId && myDeptId) {
-                        return String(uDeptId) === String(myDeptId);
-                    }
-                    return true;
-                });
+                // Return all users provided by the backend. 
+                // The backend handles the filtering logic (Own Dept + Other Dept Heads/PMs/Standalone).
+                validAssignees = fetchedUsers;
             }
             else if (['staff', 'projectmanager', 'standalone', 'standalonerole', 'projectmanagerandstandalone'].includes(currentUserRole)) {
                 validAssignees = fetchedUsers;
@@ -1317,7 +1306,7 @@ export default function AllTasks() {
                                     <Button
                                         type="primary"
                                         onClick={handleAddComment}
-                                        className="self-end"
+                                        className="self-end create-user-btn"
                                     >
                                         Add
                                     </Button>

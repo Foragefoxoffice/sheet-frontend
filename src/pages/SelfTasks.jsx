@@ -596,7 +596,7 @@ export default function SelfTasks() {
                                 <Button
                                     type="primary"
                                     onClick={handleAddComment}
-                                    className="self-end"
+                                    className="self-end create-user-btn"
                                 >
                                     Add
                                 </Button>
