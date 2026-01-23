@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { Tooltip } from 'antd';
 import { Link, useLocation } from 'react-router-dom';
 import { useAuth } from '../../hooks/useAuth';
 import { useSidebar } from './Layout';
@@ -142,41 +143,39 @@ export default function Sidebar() {
                     const active = isActive(item.path);
 
                     return (
-                        <Link
+                        <Tooltip
                             key={item.path}
-                            to={item.path}
-                            className={`relative flex items-center rounded-xl transition-all mb-4 duration-300 group overflow-hidden ${isSidebarExpanded ? 'px-4 py-3.5 gap-4' : 'justify-center p-3.5'
-                                } ${active
-                                    ? 'text-white shadow-lg shadow-[#253094]/30'
-                                    : 'text-gray-500 hover:text-[#253094] hover:bg-[#253094]/20'
-                                }`}
+                            title={!isSidebarExpanded ? item.label : null}
+                            placement="right"
                         >
-                            {/* Active Background Gradient */}
-                            {active && (
-                                <div className="absolute inset-0 bg-[#253094] z-0" />
-                            )}
-
-                            {/* Icon with refined scaling */}
-                            <Icon
-                                className={`relative z-10 w-5 h-5 shrink-0 transition-transform duration-300 ${active ? 'scale-110' : 'group-hover:scale-110'
+                            <Link
+                                to={item.path}
+                                className={`relative flex items-center rounded-xl transition-all mb-4 duration-300 group overflow-hidden ${isSidebarExpanded ? 'px-4 py-3.5 gap-4' : 'justify-center p-3.5'
+                                    } ${active
+                                        ? 'text-white shadow-lg shadow-[#253094]/30'
+                                        : 'text-gray-500 hover:text-[#253094] hover:bg-[#253094]/20'
                                     }`}
-                            />
+                            >
+                                {/* Active Background Gradient */}
+                                {active && (
+                                    <div className="absolute inset-0 bg-[#253094] z-0" />
+                                )}
 
-                            {/* Label */}
-                            {isSidebarExpanded && (
-                                <span className={`relative z-10 text-[16px] font-medium whitespace-nowrap transition-all duration-300 delay-75 ${active ? 'font-semibold' : ''
-                                    }`}>
-                                    {item.label}
-                                </span>
-                            )}
+                                {/* Icon with refined scaling */}
+                                <Icon
+                                    className={`relative z-10 w-5 h-5 shrink-0 transition-transform duration-300 ${active ? 'scale-110' : 'group-hover:scale-110'
+                                        }`}
+                                />
 
-                            {/* Collapsed Tooltip */}
-                            {!isSidebarExpanded && (
-                                <div className="absolute left-16 ml-2 px-3 py-2 bg-gray-900 text-white text-xs font-medium rounded-lg opacity-0 group-hover:opacity-100 transition-opacity duration-200 whitespace-nowrap pointer-events-none z-50 shadow-xl translate-x-2 group-hover:translate-x-0">
-                                    {item.label}
-                                </div>
-                            )}
-                        </Link>
+                                {/* Label */}
+                                {isSidebarExpanded && (
+                                    <span className={`relative z-10 text-[16px] font-medium whitespace-nowrap transition-all duration-300 delay-75 ${active ? 'font-semibold' : ''
+                                        }`}>
+                                        {item.label}
+                                    </span>
+                                )}
+                            </Link>
+                        </Tooltip>
                     );
                 })}
             </nav>
@@ -201,14 +200,15 @@ export default function Sidebar() {
                     )}
 
                     {/* Logout/Settings Controls */}
-                    <button
-                        onClick={logout}
-                        className={`flex items-center justify-center text-gray-400 hover:text-danger hover:bg-red-50 rounded-lg transition-colors p-2 ${!isSidebarExpanded && 'mt-2 hover:bg-transparent hover:text-danger'
-                            }`}
-                        title="Logout"
-                    >
-                        <LogOut color='red' className="w-5 h-5 cursor-pointer" />
-                    </button>
+                    <Tooltip title="Logout" placement="right">
+                        <button
+                            onClick={logout}
+                            className={`flex items-center justify-center text-gray-400 hover:text-danger hover:bg-red-50 rounded-lg transition-colors p-2 ${!isSidebarExpanded && 'mt-2 hover:bg-transparent hover:text-danger'
+                                }`}
+                        >
+                            <LogOut color='red' className="w-5 h-5 cursor-pointer" />
+                        </button>
+                    </Tooltip>
                 </div>
             </div>
         </aside>
