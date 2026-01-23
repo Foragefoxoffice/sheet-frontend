@@ -3,6 +3,7 @@ import { Plus, Trash2, Shield, Search as SearchIcon, ShieldAlert, LayoutGrid, Ch
 import { Input, Button, Modal as AntModal, Form, Checkbox, Skeleton } from 'antd';
 import { useAuth } from '../hooks/useAuth';
 import Modal from '../components/common/Modal';
+import DeleteConfirmationModal from '../components/common/DeleteConfirmationModal';
 import api from '../utils/api';
 import { showToast } from '../utils/helpers';
 import StatCard from '../components/common/StatCard';
@@ -75,7 +76,10 @@ export default function Roles() {
     const [searchTerm, setSearchTerm] = useState('');
     const [showCreateModal, setShowCreateModal] = useState(false);
     const [selectedRole, setSelectedRole] = useState(null);
+
     const [form] = Form.useForm();
+    const [showDeleteModal, setShowDeleteModal] = useState(false);
+    const [roleToDelete, setRoleToDelete] = useState(null);
 
     // Check if user has permission to view roles
     const canViewRoles = user?.permissions?.viewRoles;
@@ -174,23 +178,23 @@ export default function Roles() {
         setShowCreateModal(true);
     };
 
-    const handleDeleteRole = (roleId, roleName) => {
-        AntModal.confirm({
-            title: `Delete Role`,
-            content: `Are you sure you want to delete the role "${roleName}"?`,
-            okText: 'Yes, Delete',
-            okType: 'danger',
-            cancelText: 'Cancel',
-            onOk: async () => {
-                try {
-                    await api.delete(`/roles/${roleId}`);
-                    showToast('Role deleted successfully', 'success');
-                    fetchRoles();
-                } catch (error) {
-                    showToast(error.response?.data?.error || 'Failed to delete role', 'error');
-                }
-            }
-        });
+    const handleDeleteRole = (role) => {
+        setRoleToDelete(role);
+        setShowDeleteModal(true);
+    };
+
+    const confirmDeleteRole = async () => {
+        if (!roleToDelete) return;
+
+        try {
+            await api.delete(`/roles/${roleToDelete._id}`);
+            showToast('Role deleted successfully', 'success');
+            fetchRoles();
+            setShowDeleteModal(false);
+            setRoleToDelete(null);
+        } catch (error) {
+            showToast(error.response?.data?.error || 'Failed to delete role', 'error');
+        }
     };
 
     const handleSubmit = async (values) => {
@@ -380,7 +384,7 @@ export default function Roles() {
                                 <div className="flex">
                                     <Button
                                         danger
-                                        onClick={() => handleDeleteRole(role._id, role.displayName)}
+                                        onClick={() => handleDeleteRole(role)}
                                         className="w-full h-10 rounded-xl hover:bg-red-50 flex items-center justify-center gap-2"
                                         icon={<Trash2 className="w-4 h-4" />}
                                     >
@@ -551,6 +555,19 @@ export default function Roles() {
                     </div>
                 </Form>
             </Modal>
+
+
+            <DeleteConfirmationModal
+                isOpen={showDeleteModal}
+                onClose={() => {
+                    setShowDeleteModal(false);
+                    setRoleToDelete(null);
+                }}
+                onConfirm={confirmDeleteRole}
+                title="Delete Role"
+                message="Are you sure you want to delete this role? This action cannot be undone."
+                itemName={roleToDelete?.displayName}
+            />
         </div>
     );
 }

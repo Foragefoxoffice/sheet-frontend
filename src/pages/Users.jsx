@@ -3,6 +3,7 @@ import { Input, Select, Button, Tabs, Skeleton } from 'antd';
 import { useState, useEffect } from 'react';
 import { useAuth } from '../hooks/useAuth';
 import Modal from '../components/common/Modal';
+import DeleteConfirmationModal from '../components/common/DeleteConfirmationModal';
 import CreateUserForm from '../components/features/users/CreateUserForm';
 import EditUserForm from '../components/features/users/EditUserForm';
 import StatCard from '../components/common/StatCard';
@@ -102,7 +103,10 @@ export default function Users() {
     const [departmentFilter, setDepartmentFilter] = useState('all');
     const [showCreateModal, setShowCreateModal] = useState(false);
     const [showEditModal, setShowEditModal] = useState(false);
+
     const [selectedUser, setSelectedUser] = useState(null);
+    const [showDeleteModal, setShowDeleteModal] = useState(false);
+    const [userToDelete, setUserToDelete] = useState(null);
 
     useEffect(() => {
         const loadData = async () => {
@@ -241,14 +245,20 @@ export default function Users() {
         fetchUsers(); // Refresh the list
     };
 
-    const handleDelete = async (userId) => {
-        if (!window.confirm('Are you sure you want to delete this user?')) {
-            return;
-        }
+    const handleDelete = (userId) => {
+        const user = users.find(u => u._id === userId);
+        setUserToDelete(user);
+        setShowDeleteModal(true);
+    };
+
+    const confirmDelete = async () => {
+        if (!userToDelete) return;
 
         try {
-            await api.delete(`/users/${userId}`);
-            setUsers(prev => prev.filter(u => u._id !== userId));
+            await api.delete(`/users/${userToDelete._id}`);
+            setUsers(prev => prev.filter(u => u._id !== userToDelete._id));
+            setShowDeleteModal(false);
+            setUserToDelete(null);
         } catch (error) {
             console.error('Failed to delete user:', error);
         }
@@ -558,6 +568,18 @@ export default function Users() {
                     departments={departments}
                 />
             </Modal>
+
+            <DeleteConfirmationModal
+                isOpen={showDeleteModal}
+                onClose={() => {
+                    setShowDeleteModal(false);
+                    setUserToDelete(null);
+                }}
+                onConfirm={confirmDelete}
+                title="Delete User"
+                message="Are you sure you want to delete this user? This action cannot be undone."
+                itemName={userToDelete?.name}
+            />
         </div>
     );
 }

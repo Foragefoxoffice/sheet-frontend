@@ -5,6 +5,7 @@ import { CheckCircle2, ListTodo, Plus, Search, Filter, Users, Send, Target, Brie
 import { useAuth } from '../hooks/useAuth';
 import TaskCard from '../components/common/TaskCard';
 import Modal from '../components/common/Modal';
+import DeleteConfirmationModal from '../components/common/DeleteConfirmationModal';
 import StatCard from '../components/common/StatCard';
 import api from '../utils/api';
 import { showToast } from '../utils/helpers';
@@ -139,6 +140,8 @@ export default function AllTasks() {
     const [editingTask, setEditingTask] = useState(null);
     const [allTasks, setAllTasks] = useState([]);
     const [loading, setLoading] = useState(true);
+    const [showDeleteModal, setShowDeleteModal] = useState(false);
+    const [taskToDelete, setTaskToDelete] = useState(null);
     const [viewFilter, setViewFilter] = useState('assigned-to-me');
     const [statusFilter, setStatusFilter] = useState('all');
     const [selectedTask, setSelectedTask] = useState(null);
@@ -160,16 +163,21 @@ export default function AllTasks() {
         taskGivenBy: '',
     });
 
-    const handleDeleteTask = async (task) => {
-        if (!window.confirm(`Are you sure you want to delete task "${task.task}" ? This action cannot be undone.`)) {
-            return;
-        }
+    const handleDeleteTask = (task) => {
+        setTaskToDelete(task);
+        setShowDeleteModal(true);
+    };
+
+    const confirmDeleteTask = async () => {
+        if (!taskToDelete) return;
 
         try {
-            const response = await api.delete(`/tasks/${task._id}`);
+            const response = await api.delete(`/tasks/${taskToDelete._id}`);
             if (response.data.success) {
                 showToast('Task deleted successfully', 'success');
                 fetchAllTasks();
+                setShowDeleteModal(false);
+                setTaskToDelete(null);
             }
         } catch (error) {
             console.error('Delete task error:', error);
@@ -812,6 +820,18 @@ export default function AllTasks() {
                     )}
                 </div>
             </div>
+
+            <DeleteConfirmationModal
+                isOpen={showDeleteModal}
+                onClose={() => {
+                    setShowDeleteModal(false);
+                    setTaskToDelete(null);
+                }}
+                onConfirm={confirmDeleteTask}
+                title="Delete Task"
+                message="Are you sure you want to delete this task? This action cannot be undone."
+                itemName={taskToDelete?.task}
+            />
 
 
 

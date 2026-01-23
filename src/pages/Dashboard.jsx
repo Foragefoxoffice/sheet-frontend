@@ -455,7 +455,7 @@ export default function Dashboard() {
 
                     {/* My Tasks - Always show */}
                     <div
-                        onClick={() => navigate('/my-tasks')}
+                        onClick={() => navigate('/all-tasks')}
                         className="group bg-white p-6 rounded-2xl shadow-sm border border-gray-100 hover:shadow-xl hover:border-primary-100 transition-all duration-300 cursor-pointer overflow-hidden relative hover:-translate-y-1"
                     >
                         <div className="absolute top-0 right-0 w-24 h-24 bg-primary-50 rounded-bl-full -mr-4 -mt-4 opacity-50 group-hover:scale-110 transition-transform duration-500"></div>

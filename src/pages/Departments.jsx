@@ -4,6 +4,7 @@ import { Input, Button, Modal as AntModal, Skeleton } from 'antd';
 import { useAuth } from '../hooks/useAuth';
 import Modal from '../components/common/Modal';
 import CreateDepartmentForm from '../components/features/departments/CreateDepartmentForm';
+import DeleteConfirmationModal from '../components/common/DeleteConfirmationModal';
 import StatCard from '../components/common/StatCard';
 import api from '../utils/api';
 import { showToast } from '../utils/helpers';
@@ -86,6 +87,8 @@ export default function Departments() {
     const [loading, setLoading] = useState(true);
     const [searchQuery, setSearchQuery] = useState('');
     const [showCreateModal, setShowCreateModal] = useState(false);
+    const [showDeleteModal, setShowDeleteModal] = useState(false);
+    const [deptToDelete, setDeptToDelete] = useState(null);
 
     useEffect(() => {
         fetchDepartments();
@@ -123,23 +126,24 @@ export default function Departments() {
     };
 
     const handleDelete = (id) => {
-        AntModal.confirm({
-            title: 'Delete Department',
-            content: 'Are you sure you want to delete this department? This action cannot be undone.',
-            okText: 'Yes, Delete',
-            okType: 'danger',
-            cancelText: 'Cancel',
-            onOk: async () => {
-                try {
-                    await api.delete(`/departments/${id}`);
-                    setDepartments(prev => prev.filter(dept => dept._id !== id));
-                    showToast('Department deleted successfully', 'success');
-                    fetchDepartments(); // Refresh the list
-                } catch (error) {
-                    showToast(error.response?.data?.error || 'Failed to delete department', 'error');
-                }
-            }
-        });
+        const dept = departments.find(d => d._id === id);
+        setDeptToDelete(dept);
+        setShowDeleteModal(true);
+    };
+
+    const confirmDelete = async () => {
+        if (!deptToDelete) return;
+
+        try {
+            await api.delete(`/departments/${deptToDelete._id}`);
+            setDepartments(prev => prev.filter(dept => dept._id !== deptToDelete._id));
+            showToast('Department deleted successfully', 'success');
+            fetchDepartments(); // Refresh the list
+            setShowDeleteModal(false);
+            setDeptToDelete(null);
+        } catch (error) {
+            showToast(error.response?.data?.error || 'Failed to delete department', 'error');
+        }
     };
 
     const filteredDepartments = departments.filter(dept =>
@@ -356,6 +360,18 @@ export default function Departments() {
                     managers={managers}
                 />
             </Modal>
+
+            <DeleteConfirmationModal
+                isOpen={showDeleteModal}
+                onClose={() => {
+                    setShowDeleteModal(false);
+                    setDeptToDelete(null);
+                }}
+                onConfirm={confirmDelete}
+                title="Delete Department"
+                message="Are you sure you want to delete this department? This action cannot be undone."
+                itemName={deptToDelete?.name}
+            />
         </div>
     );
 }
