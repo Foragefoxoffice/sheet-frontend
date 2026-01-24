@@ -68,7 +68,6 @@ export default function Modal({ isOpen, onClose, title, children, size = 'medium
                             >
                                 {title}
                             </h2>
-                            {/* Optional: We could add a subtitle prop later if needed, but for now we keep it simple */}
                         </div>
 
                         <button

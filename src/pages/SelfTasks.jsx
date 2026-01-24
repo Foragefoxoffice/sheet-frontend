@@ -134,7 +134,7 @@ export default function SelfTasks() {
 
     const handleSubmitTask = async () => {
         if (!createFormData.task.trim()) {
-            showToast('Task description is required', 'error');
+            showToast('Task is required', 'error');
             return;
         }
 
@@ -217,9 +217,13 @@ export default function SelfTasks() {
             });
 
             if (response.data.success) {
-                setSelectedTask(response.data.task);
+                const updatedTask = response.data.task;
+                setSelectedTask(updatedTask);
                 setNewComment('');
                 showToast('Comment added', 'success');
+
+                // Update local tasks state
+                setTasks(prev => prev.map(t => t._id === updatedTask._id ? updatedTask : t));
             }
         } catch (error) {
             console.error('Error adding comment:', error);
@@ -490,20 +494,20 @@ export default function SelfTasks() {
                     className="mt-4"
                 >
                     <Form.Item
-                        label={<span className="font-medium text-gray-700">Task Description <span className="text-danger">*</span></span>}
+                        label={<span className="font-medium text-gray-700">Task</span>}
                         required
                     >
                         <Input.TextArea
                             value={createFormData.task}
                             onChange={(e) => setCreateFormData({ ...createFormData, task: e.target.value })}
-                            placeholder="Enter task description"
+                            placeholder="Enter task"
                             rows={3}
                             size="large"
                         />
                     </Form.Item>
 
                     <Form.Item
-                        label={<span className="font-medium text-gray-700">Priority <span className="text-danger">*</span></span>}
+                        label={<span className="font-medium text-gray-700">Priority</span>}
                     >
                         <Select
                             value={createFormData.priority}
@@ -554,7 +558,7 @@ export default function SelfTasks() {
                         setShowDetailModal(false);
                         setSelectedTask(null);
                     }}
-                    title={`Task #${selectedTask.sno}`}
+                    title={`Task ID: ${selectedTask.sno}`}
                 >
                     <div className="space-y-4">
                         <div>
@@ -582,29 +586,6 @@ export default function SelfTasks() {
 
                         {/* Comments Section */}
                         <div className="border-t pt-4">
-                            <h4 className="text-sm font-medium text-gray-700 mb-3">Comments & Activity</h4>
-                            <div className="space-y-4 mb-4 max-h-60 overflow-y-auto">
-                                {selectedTask.comments?.map((comment, index) => (
-                                    <div key={index} className={`flex flex-col ${comment.itemType === 'system' ? 'items-center' : 'items-start'}`}>
-                                        <div className="bg-gray-50 rounded-lg p-3 w-full">
-                                            <div className="flex justify-between items-start mb-1">
-                                                <span className="font-medium text-sm text-gray-900">
-                                                    {comment.createdByName}
-                                                    {comment.userRole && <span className="text-xs text-gray-500 ml-2">({comment.userRole})</span>}
-                                                </span>
-                                                <span className="text-xs text-gray-500">
-                                                    {new Date(comment.createdAt).toLocaleString()}
-                                                </span>
-                                            </div>
-                                            <p className="text-sm text-gray-700 whitespace-pre-wrap">{comment.text}</p>
-                                        </div>
-                                    </div>
-                                ))}
-                                {(!selectedTask.comments || selectedTask.comments.length === 0) && (
-                                    <p className="text-sm text-gray-500 text-center py-2">No comments yet</p>
-                                )}
-                            </div>
-
                             <div className="flex gap-2">
                                 <Input.TextArea
                                     value={newComment}

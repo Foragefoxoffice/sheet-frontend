@@ -492,10 +492,21 @@ export default function AllTasks() {
             });
 
             if (response.data.success) {
-                // Update selected task with new comments
-                setSelectedTask(response.data.task);
+                const updatedTask = response.data.task;
+                setSelectedTask(updatedTask);
                 setNewComment('');
                 showToast('Comment added', 'success');
+
+                // Update local tasks state
+                setAllTasks(prev => {
+                    const updateList = (list) => (list || []).map(t => t._id === updatedTask._id ? updatedTask : t);
+                    return {
+                        assignedToMe: updateList(prev.assignedToMe),
+                        iAssigned: updateList(prev.iAssigned),
+                        selfTasks: updateList(prev.selfTasks),
+                        allDeptTasks: updateList(prev.allDeptTasks)
+                    };
+                });
             }
         } catch (error) {
             console.error('Error adding comment:', error);
@@ -595,7 +606,7 @@ export default function AllTasks() {
         // e.preventDefault() is not needed directly with Ant Design Form onFinish
 
         if (!createFormData.task.trim()) {
-            showToast('Task description is required', 'error');
+            showToast('Task is required', 'error');
             return;
         }
 
@@ -1391,35 +1402,13 @@ export default function AllTasks() {
                             setShowDetailModal(false);
                             setSelectedTask(null);
                         }}
-                        title={`Task #${selectedTask.sno}`}
+                        title={`Task ID: ${selectedTask.sno}`}
                     >
                         <div className="space-y-4">
 
 
                             {/* Comments Section */}
                             <div className=" pt-4">
-                                <h4 className="text-sm font-medium text-gray-700 mb-3">Comments & Activity</h4>
-                                <div className="space-y-4 mb-4 max-h-60 overflow-y-auto">
-                                    {selectedTask.comments?.map((comment, index) => (
-                                        <div key={index} className={`flex flex-col ${comment.itemType === 'system' ? 'items-center' : 'items-start'}`}>
-                                            <div className="bg-gray-50 rounded-lg p-3 w-full">
-                                                <div className="flex justify-between items-start mb-1">
-                                                    <span className="font-medium text-sm text-gray-900">
-                                                        {comment.createdByName}
-                                                        {comment.userRole && <span className="text-xs text-gray-500 ml-2">({comment.userRole})</span>}
-                                                    </span>
-                                                    <span className="text-xs text-gray-500">
-                                                        {new Date(comment.createdAt).toLocaleString()}
-                                                    </span>
-                                                </div>
-                                                <p className="text-sm text-gray-700 whitespace-pre-wrap">{comment.text}</p>
-                                            </div>
-                                        </div>
-                                    ))}
-                                    {(!selectedTask.comments || selectedTask.comments.length === 0) && (
-                                        <p className="text-sm text-gray-500 text-center py-2">No comments yet</p>
-                                    )}
-                                </div>
 
                                 <div className="flex gap-2">
                                     <Input.TextArea
@@ -1431,7 +1420,7 @@ export default function AllTasks() {
                                     />
 
                                 </div>
-                                <div className='w-full pt-5'>
+                                <div className='w-full pt-5 text-right'>
                                     <Button
                                         type="primary"
                                         onClick={handleAddComment}
@@ -1469,7 +1458,7 @@ export default function AllTasks() {
             >
                 <Form layout="vertical" onFinish={handleSubmitTask} className="mt-4">
                     <Form.Item
-                        label={<span className="font-medium text-gray-700">Task Description <span className="text-danger">*</span></span>}
+                        label={<span className="font-medium text-gray-700">Task </span>}
                         required
                         validateStatus={!createFormData.task && "error"}
                     >
@@ -1485,7 +1474,7 @@ export default function AllTasks() {
                     {/* Show Assign To only if not self-task */}
                     {!createFormData.isSelfTask && (
                         <Form.Item
-                            label={<span className="font-medium text-gray-700">Assign To <span className="text-danger">*</span></span>}
+                            label={<span className="font-medium text-gray-700">Assign To </span>}
                             required
                         >
                             <Select
@@ -1638,7 +1627,7 @@ export default function AllTasks() {
                         </Form.Item>
 
                         <Form.Item
-                            label={<span className="font-medium text-gray-700">Target Date <span className="text-danger">*</span></span>}
+                            label={<span className="font-medium text-gray-700">Target Date </span>}
                             required
                         >
                             <DatePicker
@@ -1651,7 +1640,7 @@ export default function AllTasks() {
                         </Form.Item>
 
                         <Form.Item
-                            label={<span className="font-medium text-gray-700">Target Time <span className="text-danger">*</span></span>}
+                            label={<span className="font-medium text-gray-700">Target Time </span>}
                             required
                         >
                             <TimePicker

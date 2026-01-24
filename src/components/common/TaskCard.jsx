@@ -1,11 +1,13 @@
-import { Clock, User, Calendar, Tag, ChevronDown, Pencil, Trash2, UserCheck, AlertCircle } from 'lucide-react';
+import { Clock, User, Calendar, Tag, ChevronDown, Pencil, Trash2, UserCheck, AlertCircle, MessageSquare, ChevronUp, Plus as PlusIcon, FileText } from 'lucide-react';
 import { isTaskOverdue, getTimeRemaining, TASK_STATUS } from '../../utils/taskHelpers';
 import { formatDateTime } from '../../utils/helpers';
 import { useState } from 'react';
+import Modal from './Modal';
 
 export default function TaskCard({ task, onStatusChange, onView, onEdit, onDelete, showActions = true, canEdit = true }) {
     const isOverdue = isTaskOverdue(task.dueDate, task.status);
     const [isChangingStatus, setIsChangingStatus] = useState(false);
+    const [showComments, setShowComments] = useState(false);
 
     const handleStatusChange = async (newStatus) => {
         if (newStatus === task.status) return;
@@ -32,6 +34,18 @@ export default function TaskCard({ task, onStatusChange, onView, onEdit, onDelet
         }
     };
 
+    const formatDateTime1 = (date) => {
+        return new Date(date).toLocaleString('en-IN', {
+            day: '2-digit',
+            month: 'short',
+            year: 'numeric',
+            hour: '2-digit',
+            minute: '2-digit',
+            hour12: true,
+        });
+    };
+
+
     return (
         <div className="group bg-white rounded-xl shadow-[0_2px_8px_rgba(0,0,0,0.04)] hover:shadow-[0_8px_24px_rgba(0,0,0,0.08)] border border-gray-100 transition-all duration-300 relative overflow-hidden h-full flex flex-col">
 
@@ -46,7 +60,7 @@ export default function TaskCard({ task, onStatusChange, onView, onEdit, onDelet
                 <div className="flex items-start justify-between mb-3">
                     <div className="flex flex-col gap-1">
                         <div className="flex items-center gap-2">
-                            <span className="text-xs font-bold text-gray-400 tracking-wider">#{task.sno}</span>
+                            <span className="text-xs font-bold text-gray-400 tracking-wider">Task ID: {task.sno}</span>
                             {task.isSelfTask && (
                                 <span className="px-1.5 py-0.5 bg-purple-50 text-purple-600 text-[10px] font-bold rounded border border-purple-100 uppercase tracking-wide">
                                     Self
@@ -100,21 +114,89 @@ export default function TaskCard({ task, onStatusChange, onView, onEdit, onDelet
                         </div>
                     </div>
 
+                    {/* Assigned By */}
+                    <div className="flex flex-col gap-2">
+                        <span className="text-[11px] font-semibold text-gray-400 uppercase tracking-wider flex items-center gap-1">
+                            <UserCheck className="w-3 h-3" /> Assigned By
+                        </span>
+                        <div className="flex items-center gap-2">
+                            <div className="w-6 h-6 rounded-full bg-emerald-100 flex items-center justify-center text-emerald-600 text-xs font-bold ring-2 ring-white">
+                                {task.createdBy?.name?.charAt(0) || task.createdByEmail?.charAt(0) || 'A'}
+                            </div>
+                            <span className="text-sm font-medium text-gray-700 truncate max-w-[100px]" title={task.createdBy?.name || task.createdByEmail}>
+                                {task.createdBy?.name || task.createdByEmail}
+                            </span>
+                        </div>
+                    </div>
+
+                    {
+                        task.isSelfTask && (
+                            <div className="flex flex-col gap-2">
+                                <span className="text-[11px] font-semibold text-gray-400 uppercase tracking-wider flex items-center gap-1">
+                                    <UserCheck className="w-3 h-3" /> Given By
+                                </span>
+                                <div className="flex items-center gap-2">
+                                    <div className="w-6 h-6 rounded-full bg-emerald-100 flex items-center justify-center text-emerald-600 text-xs font-bold ring-2 ring-white">
+                                        {task.taskGivenByName?.charAt(0) || 'A'}
+                                    </div>
+                                    <span className="text-sm font-medium text-gray-700 truncate max-w-[100px]" title={task.taskGivenByName}>
+                                        {task.taskGivenByName}
+                                    </span>
+                                </div>
+                            </div>
+                        )
+                    }
                     {/* Due Date */}
                     <div className="flex flex-col gap-2">
                         <span className="text-[11px] font-semibold text-gray-400 uppercase tracking-wider flex items-center gap-1">
-                            <Calendar className="w-3 h-3" /> Due Date
+                            <Calendar className="w-3 h-3" /> Due Date & Time
                         </span>
                         <div className="flex items-center gap-1.5">
-                            <span className={`text-sm font-medium ${isOverdue ? 'text-red-600' : 'text-gray-700'}`}>
-                                {formatDateTime(task.dueDate).split(',')[0]}
+                            <span
+                                className={`text-sm font-medium ${isOverdue ? 'text-red-600' : 'text-gray-700'
+                                    }`}
+                            >
+                                {formatDateTime1(task.dueDate)}
                             </span>
                             {isOverdue && (
                                 <AlertCircle className="w-3 h-3 text-red-500 animate-pulse" />
                             )}
                         </div>
                     </div>
+
+                    {/* Comments Button */}
+                    {task.comments && task.comments.length > 0 && (
+                        <div className="flex flex-col gap-2 pt-2">
+                            <button
+                                onClick={(e) => {
+                                    e.stopPropagation();
+                                    setShowComments(true);
+                                }}
+                                className="flex cursor-pointer items-center gap-2 px-2 py-1 bg-primary-50 hover:bg-primary-100 text-primary-600 rounded-lg transition-colors border border-primary-200"
+                            >
+                                <MessageSquare className="w-4 h-4" />
+                                <span className="text-sm font-semibold">View Comments</span>
+                                <span className="px-2 py-0.5 bg-primary-600 text-white text-xs rounded-full">
+                                    {task.comments.length}
+                                </span>
+                            </button>
+                        </div>
+                    )}
                 </div>
+
+                {/* Notes Section */}
+                {task.notes && (
+                    <div className="pt-2 border-t border-dashed border-gray-100">
+                        <div className="flex flex-col gap-2">
+                            <span className="text-[11px] font-semibold text-gray-400 uppercase tracking-wider flex items-center gap-1">
+                                <FileText className="w-3 h-3" /> Notes
+                            </span>
+                            <p className="text-xs text-gray-600 leading-relaxed line-clamp-3">
+                                {task.notes}
+                            </p>
+                        </div>
+                    </div>
+                )}
 
                 {/* Badges Row */}
                 <div className="flex flex-wrap items-center gap-2 mt-auto pt-4 border-t border-gray-50">
@@ -168,9 +250,9 @@ export default function TaskCard({ task, onStatusChange, onView, onEdit, onDelet
                     {onView && (
                         <button
                             onClick={() => onView(task)}
-                            className="px-3.5 py-2 cursor-pointer bg-white hover:bg-gray-50 text-gray-600 font-semibold text-xs border border-gray-200 rounded-lg shadow-sm transition-all hover:text-primary-600 hover:border-primary-200 whitespace-nowrap"
+                            className="px-3.5 py-2 cursor-pointer flex items-center gap-2 bg-white hover:bg-gray-50 text-gray-600 font-semibold text-xs border border-gray-200 rounded-lg shadow-sm transition-all hover:text-primary-600 hover:border-primary-200 whitespace-nowrap"
                         >
-                            Comment
+                            <PlusIcon className="w-4 h-4" /> Add Comment
                         </button>
                     )}
                 </div>
@@ -183,6 +265,58 @@ export default function TaskCard({ task, onStatusChange, onView, onEdit, onDelet
                     {task.approvalStatus === 'Approved' ? 'Approved' : 'Returned'}
                 </div>
             )}
+
+            {/* Comments Modal */}
+            <Modal
+                isOpen={showComments}
+                onClose={() => setShowComments(false)}
+                title={`Comments (${task.comments?.length || 0})`}
+                size="medium"
+            >
+                <div className="space-y-4">
+                    {task.comments && task.comments.length > 0 ? (
+                        task.comments.map((comment, index) => (
+                            <div key={index} className="flex gap-3 p-4 bg-gray-50 rounded-xl hover:bg-gray-100 transition-colors border border-gray-100">
+                                <div className="flex-shrink-0">
+                                    <div className="w-10 h-10 rounded-full bg-gradient-to-br from-primary-500 to-indigo-600 flex items-center justify-center text-white text-sm font-bold shadow-sm">
+                                        {comment.createdByName?.charAt(0) || 'U'}
+                                    </div>
+                                </div>
+                                <div className="flex-1 min-w-0">
+                                    <div className="flex items-center justify-between mb-1.5">
+                                        <div className="flex items-center gap-2">
+                                            <span className="text-sm font-bold text-gray-900">
+                                                {comment.createdByName}
+                                            </span>
+                                            {(comment.userDesignation || comment.createdBy?.designation || comment.userRole) && (
+                                                <span className="text-[10px] font-semibold text-primary-700 bg-primary-50 px-2 py-0.5 rounded-full border border-primary-100 uppercase tracking-wide">
+                                                    {comment.userDesignation || comment.createdBy?.designation || comment.userRole}
+                                                </span>
+                                            )}
+                                            {comment.userDepartment && (
+                                                <span className="text-[10px] font-semibold text-indigo-700 bg-indigo-50 px-2 py-0.5 rounded-full border border-indigo-100 uppercase tracking-wide">
+                                                    {comment.userDepartment}
+                                                </span>
+                                            )}
+                                        </div>
+                                        <div className="flex items-center text-xs text-gray-400 gap-1.5">
+                                            <Clock className="w-3 h-3" />
+                                            {formatDateTime1(comment.createdAt)}
+                                        </div>
+                                    </div>
+                                    <p className="text-sm text-gray-700 leading-relaxed whitespace-pre-wrap">
+                                        {comment.text}
+                                    </p>
+                                </div>
+                            </div>
+                        ))
+                    ) : (
+                        <div className="text-center py-8 text-gray-500">
+                            No comments yet.
+                        </div>
+                    )}
+                </div>
+            </Modal>
         </div>
     );
 }

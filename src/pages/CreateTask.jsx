@@ -84,10 +84,13 @@ export default function CreateTask() {
             }
 
             let finalTaskGivenBy = values.taskGivenBy;
+            let finalTaskGivenByName = '';
+
             if (values.taskGivenBy) {
                 const giverUser = users.find(u => u._id === values.taskGivenBy);
                 if (giverUser) {
                     finalTaskGivenBy = giverUser.email;
+                    finalTaskGivenByName = giverUser.name;
                 }
             }
 
@@ -100,6 +103,7 @@ export default function CreateTask() {
                 notes: values.notes,
                 isSelfTask: isSelfTask,
                 taskGivenBy: finalTaskGivenBy,
+                taskGivenByName: finalTaskGivenByName,
             };
 
             const response = await api.post('/tasks', requestData);
@@ -142,8 +146,8 @@ export default function CreateTask() {
                 >
                     <Form.Item
                         name="task"
-                        label={<span className="font-medium text-gray-700">Task Description <span className="text-red-500">*</span></span>}
-                        rules={[{ required: true, message: 'Please enter a task description' }]}
+                        label={<span className="font-medium text-gray-700">Task</span>}
+                        rules={[{ required: true, message: 'Please enter a task' }]}
                     >
                         <Input.TextArea
                             rows={4}
@@ -156,7 +160,7 @@ export default function CreateTask() {
                     {!isSelfTask && (
                         <Form.Item
                             name="assignedToEmail"
-                            label={<span className="font-medium text-gray-700">Assign To <span className="text-red-500">*</span></span>}
+                            label={<span className="font-medium text-gray-700">Assign To</span>}
                             rules={[{ required: true, message: 'Please select a user' }]}
                         >
                             <Select
@@ -203,7 +207,6 @@ export default function CreateTask() {
                                     showSearch
                                     optionFilterProp="children"
                                     allowClear
-                                    onChange={(val) => setTaskGivenBy(val)}
                                 >
                                     {users
                                         .filter(u => u.email !== user.email)
@@ -231,7 +234,7 @@ export default function CreateTask() {
 
                         <Form.Item
                             name="targetDate"
-                            label={<span className="font-medium text-gray-700">Target Date <span className="text-red-500">*</span></span>}
+                            label={<span className="font-medium text-gray-700">Target Date</span>}
                             rules={[{ required: true, message: 'Please select a date' }]}
                         >
                             <DatePicker
@@ -243,7 +246,7 @@ export default function CreateTask() {
 
                         <Form.Item
                             name="targetTime"
-                            label={<span className="font-medium text-gray-700">Target Time <span className="text-red-500">*</span></span>}
+                            label={<span className="font-medium text-gray-700">Target Time</span>}
                             rules={[{ required: true, message: 'Please select a time' }]}
                         >
                             <TimePicker
