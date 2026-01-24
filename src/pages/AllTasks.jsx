@@ -312,10 +312,10 @@ export default function AllTasks() {
         filtered.forEach(u => {
             if (u.email && !uniqueUsersMap.has(u.email)) {
                 const departmentName = u.department?.name || 'No Department';
-                const roleName = u.role?.displayName || u.role?.name || 'N/A';
+                const displayText = u.designation || u.role?.displayName || u.role?.name || 'N/A';
                 uniqueUsersMap.set(u.email, {
                     value: u.email,
-                    label: `${u.name} (${roleName})`,
+                    label: `${u.name} (${displayText})`,
                     department: departmentName
                 });
             }
@@ -1911,11 +1911,12 @@ export default function AllTasks() {
                                                         <Select.Option
                                                             key={option.value}
                                                             value={option.value}
-                                                            label={option.label}
+                                                            label={`${option.label} (${option.designation})`}
                                                             department={option.department}
+                                                            designation={option.designation}
                                                         >
                                                             <div className="pl-2">
-                                                                {option.label}
+                                                                {option.label} <span className="text-gray-500 text-sm">({option.designation})</span>
                                                             </div>
                                                         </Select.Option>
                                                     );
