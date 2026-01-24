@@ -513,14 +513,19 @@ export default function AllTasks() {
             fetchedUsers = response.data.users || [];
             setUsers(fetchedUsers);
 
+
             // 2. Filter assignable users based on Role (Frontend Mirror of Backend Logic)
             // This ensures we show the correct options even if the specific backend endpoint misses some
             const currentUserRole = (user?.role?.name || user?.role || '').toLowerCase().replace(/\s+/g, '');
             let validAssignees = fetchedUsers;
 
             // Logic matching TaskController.js restrictions
-            if (currentUserRole === 'director' || currentUserRole === 'director2' || user?.name?.includes('Vasanth') || user?.name?.includes('Guna') || user?.name?.includes('Sathish')) {
-                // Directors -> GMs and Dept Heads
+            // Main Director can assign to ALL users
+            if (currentUserRole === 'maindirector') {
+                validAssignees = fetchedUsers;
+            }
+            // Directors -> GMs and Dept Heads
+            else if (currentUserRole === 'director' || currentUserRole === 'director2' || user?.name?.includes('Vasanth') || user?.name?.includes('Guna') || user?.name?.includes('Sathish')) {
                 validAssignees = fetchedUsers.filter(u => {
                     const r = (u.role?.name || u.role || '').toLowerCase().replace(/\s+/g, '');
                     return ['generalmanager', 'manager', 'departmenthead'].includes(r);
@@ -543,6 +548,7 @@ export default function AllTasks() {
             }
 
             setAssignableUsers(validAssignees);
+
 
         } catch (error) {
             console.error('Error fetching users:', error);
