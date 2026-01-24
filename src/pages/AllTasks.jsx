@@ -311,9 +311,12 @@ export default function AllTasks() {
         const uniqueUsersMap = new Map();
         filtered.forEach(u => {
             if (u.email && !uniqueUsersMap.has(u.email)) {
+                const departmentName = u.department?.name || 'No Department';
+                const roleName = u.role?.displayName || u.role?.name || 'N/A';
                 uniqueUsersMap.set(u.email, {
                     value: u.email,
-                    label: `${u.name} (${u.role?.displayName || u.role?.name || 'N/A'})`
+                    label: `${u.name} (${roleName})`,
+                    department: departmentName
                 });
             }
         });
@@ -321,9 +324,57 @@ export default function AllTasks() {
         return [
             { value: 'all', label: 'All Users' },
             ...Array.from(uniqueUsersMap.values())
-                .sort((a, b) => a.label.localeCompare(b.label))
+                .sort((a, b) => {
+                    // Sort by department first, then by name
+                    if (a.department !== b.department) {
+                        return a.department.localeCompare(b.department);
+                    }
+                    return a.label.localeCompare(b.label);
+                })
         ];
     }, [users, departmentFilter, roleFilter]);
+
+    // Task Given By options with department grouping (excludes current user)
+    const taskGivenByOptions = useMemo(() => {
+        const usersList = users.filter(u => u.email !== user.email);
+
+        // Group users by department
+        const usersWithDept = usersList.map(u => ({
+            ...u,
+            departmentName: u.department?.name || 'No Department'
+        }));
+
+        // Sort by department first, then by name
+        usersWithDept.sort((a, b) => {
+            if (a.departmentName !== b.departmentName) {
+                return a.departmentName.localeCompare(b.departmentName);
+            }
+            return a.name.localeCompare(b.name);
+        });
+
+        return usersWithDept;
+    }, [users, user.email]);
+
+    // Assignable users with department grouping
+    const assignableUsersGrouped = useMemo(() => {
+        // Group users by department
+        const usersWithDept = assignableUsers.map(u => ({
+            ...u,
+            departmentName: u.department?.name || 'No Department'
+        }));
+
+        // Sort by department first, then by name
+        usersWithDept.sort((a, b) => {
+            if (a.departmentName !== b.departmentName) {
+                return a.departmentName.localeCompare(b.departmentName);
+            }
+            return a.name.localeCompare(b.name);
+        });
+
+        return usersWithDept;
+    }, [assignableUsers]);
+
+
 
     // Reset user filter if selected user is not in the filtered options
     useEffect(() => {
@@ -1163,11 +1214,63 @@ export default function AllTasks() {
                                                     showSearch
                                                     placeholder="Search User"
                                                     optionFilterProp="label"
-                                                    filterOption={(input, option) =>
-                                                        (option?.label ?? '').toLowerCase().includes(input.toLowerCase())
-                                                    }
-                                                    options={filteredUserOptions}
-                                                />
+                                                    filterOption={(input, option) => {
+                                                        if (option?.value === 'all') return true;
+                                                        const searchText = input.toLowerCase();
+                                                        return (
+                                                            (option?.label ?? '').toLowerCase().includes(searchText) ||
+                                                            (option?.department ?? '').toLowerCase().includes(searchText)
+                                                        );
+                                                    }}
+                                                >
+                                                    {(() => {
+                                                        const options = [];
+                                                        let lastDepartment = null;
+
+                                                        filteredUserOptions.forEach((option, index) => {
+                                                            if (option.value === 'all') {
+                                                                options.push(
+                                                                    <Select.Option key="all" value="all">
+                                                                        All Users
+                                                                    </Select.Option>
+                                                                );
+                                                            } else {
+                                                                // Add department header if it's a new department
+                                                                if (option.department !== lastDepartment) {
+                                                                    options.push(
+                                                                        <Select.Option
+                                                                            key={`dept-${option.department}-${index}`}
+                                                                            value={`dept-header-${index}`}
+                                                                            disabled
+                                                                            className="!bg-gray-100 !cursor-default"
+                                                                        >
+                                                                            <div className="text-xs font-semibold text-gray-600 uppercase tracking-wide">
+                                                                                {option.department}
+                                                                            </div>
+                                                                        </Select.Option>
+                                                                    );
+                                                                    lastDepartment = option.department;
+                                                                }
+
+                                                                // Add user option
+                                                                options.push(
+                                                                    <Select.Option
+                                                                        key={option.value}
+                                                                        value={option.value}
+                                                                        label={option.label}
+                                                                        department={option.department}
+                                                                    >
+                                                                        <div className="pl-2">
+                                                                            {option.label}
+                                                                        </div>
+                                                                    </Select.Option>
+                                                                );
+                                                            }
+                                                        });
+
+                                                        return options;
+                                                    })()}
+                                                </Select>
                                             </div>
                                         )}
 
@@ -1385,13 +1488,54 @@ export default function AllTasks() {
                                 placeholder="Select a user"
                                 size="large"
                                 showSearch
-                                optionFilterProp="children"
+                                optionFilterProp="label"
+                                filterOption={(input, option) => {
+                                    const searchText = input.toLowerCase();
+                                    return (
+                                        (option?.label ?? '').toLowerCase().includes(searchText) ||
+                                        (option?.department ?? '').toLowerCase().includes(searchText)
+                                    );
+                                }}
                             >
-                                {assignableUsers.map(u => (
-                                    <Select.Option key={u._id} value={u._id}>
-                                        {u.name} ({u.designation || u.role?.displayName})
-                                    </Select.Option>
-                                ))}
+                                {(() => {
+                                    const options = [];
+                                    let lastDepartment = null;
+
+                                    assignableUsersGrouped.forEach((u, index) => {
+                                        // Add department header if it's a new department
+                                        if (u.departmentName !== lastDepartment) {
+                                            options.push(
+                                                <Select.Option
+                                                    key={`dept-${u.departmentName}-${index}`}
+                                                    value={`dept-header-${index}`}
+                                                    disabled
+                                                    className="!bg-gray-100 !cursor-default"
+                                                >
+                                                    <div className="text-xs font-semibold text-gray-600 uppercase tracking-wide">
+                                                        {u.departmentName}
+                                                    </div>
+                                                </Select.Option>
+                                            );
+                                            lastDepartment = u.departmentName;
+                                        }
+
+                                        // Add user option
+                                        options.push(
+                                            <Select.Option
+                                                key={u._id}
+                                                value={u._id}
+                                                label={`${u.name} (${u.designation || u.role?.displayName})`}
+                                                department={u.departmentName}
+                                            >
+                                                <div className="pl-2">
+                                                    {u.name} ({u.designation || u.role?.displayName})
+                                                </div>
+                                            </Select.Option>
+                                        );
+                                    });
+
+                                    return options;
+                                })()}
                             </Select>
                         </Form.Item>
                     )}
@@ -1420,16 +1564,55 @@ export default function AllTasks() {
                                     placeholder="Select who gave you this task"
                                     size="large"
                                     showSearch
-                                    optionFilterProp="children"
+                                    optionFilterProp="label"
                                     allowClear
+                                    filterOption={(input, option) => {
+                                        const searchText = input.toLowerCase();
+                                        return (
+                                            (option?.label ?? '').toLowerCase().includes(searchText) ||
+                                            (option?.department ?? '').toLowerCase().includes(searchText)
+                                        );
+                                    }}
                                 >
-                                    {users
-                                        .filter(u => u.email !== user.email)
-                                        .map(u => (
-                                            <Select.Option key={u._id} value={u._id}>
-                                                {u.name} ({u.designation || u.role?.displayName})
-                                            </Select.Option>
-                                        ))}
+                                    {(() => {
+                                        const options = [];
+                                        let lastDepartment = null;
+
+                                        taskGivenByOptions.forEach((u, index) => {
+                                            // Add department header if it's a new department
+                                            if (u.departmentName !== lastDepartment) {
+                                                options.push(
+                                                    <Select.Option
+                                                        key={`dept-${u.departmentName}-${index}`}
+                                                        value={`dept-header-${index}`}
+                                                        disabled
+                                                        className="!bg-gray-100 !cursor-default"
+                                                    >
+                                                        <div className="text-xs font-semibold text-gray-600 uppercase tracking-wide">
+                                                            {u.departmentName}
+                                                        </div>
+                                                    </Select.Option>
+                                                );
+                                                lastDepartment = u.departmentName;
+                                            }
+
+                                            // Add user option
+                                            options.push(
+                                                <Select.Option
+                                                    key={u._id}
+                                                    value={u._id}
+                                                    label={`${u.name} (${u.designation || u.role?.displayName})`}
+                                                    department={u.departmentName}
+                                                >
+                                                    <div className="pl-2">
+                                                        {u.name} ({u.designation || u.role?.displayName})
+                                                    </div>
+                                                </Select.Option>
+                                            );
+                                        });
+
+                                        return options;
+                                    })()}
                                 </Select>
                             </Form.Item>
                         </div>
@@ -1679,14 +1862,63 @@ export default function AllTasks() {
                                         size="large"
                                         showSearch
                                         optionFilterProp="label"
-                                        options={[
-                                            { value: 'all', label: 'All Users' },
-                                            ...users.map(u => ({
-                                                value: u.email,
-                                                label: `${u.name} (${u.role?.displayName || u.role})`
-                                            }))
-                                        ]}
-                                    />
+                                        filterOption={(input, option) => {
+                                            if (option?.value === 'all') return true;
+                                            const searchText = input.toLowerCase();
+                                            return (
+                                                (option?.label ?? '').toLowerCase().includes(searchText) ||
+                                                (option?.department ?? '').toLowerCase().includes(searchText)
+                                            );
+                                        }}
+                                    >
+                                        {(() => {
+                                            const options = [];
+                                            let lastDepartment = null;
+
+                                            filteredUserOptions.forEach((option, index) => {
+                                                if (option.value === 'all') {
+                                                    options.push(
+                                                        <Select.Option key="all" value="all">
+                                                            All Users
+                                                        </Select.Option>
+                                                    );
+                                                } else {
+                                                    // Add department header if it's a new department
+                                                    if (option.department !== lastDepartment) {
+                                                        options.push(
+                                                            <Select.Option
+                                                                key={`dept-${option.department}-${index}`}
+                                                                value={`dept-header-${index}`}
+                                                                disabled
+                                                                className="!bg-gray-100 !cursor-default"
+                                                            >
+                                                                <div className="text-xs font-semibold text-gray-600 uppercase tracking-wide">
+                                                                    {option.department}
+                                                                </div>
+                                                            </Select.Option>
+                                                        );
+                                                        lastDepartment = option.department;
+                                                    }
+
+                                                    // Add user option
+                                                    options.push(
+                                                        <Select.Option
+                                                            key={option.value}
+                                                            value={option.value}
+                                                            label={option.label}
+                                                            department={option.department}
+                                                        >
+                                                            <div className="pl-2">
+                                                                {option.label}
+                                                            </div>
+                                                        </Select.Option>
+                                                    );
+                                                }
+                                            });
+
+                                            return options;
+                                        })()}
+                                    </Select>
                                 </div>
                             )}
 
