@@ -1,13 +1,44 @@
-import { Clock, User, Calendar, Tag, ChevronDown, Pencil, Trash2, UserCheck, AlertCircle, MessageSquare, ChevronUp, Plus as PlusIcon, FileText, CornerUpRight } from 'lucide-react';
+import { Clock, User, Calendar, Tag, ChevronDown, Pencil, Trash2, UserCheck, AlertCircle, MessageSquare, ChevronUp, Plus as PlusIcon, FileText, CornerUpRight, Send } from 'lucide-react';
 import { isTaskOverdue, getTimeRemaining, TASK_STATUS } from '../../utils/taskHelpers';
-import { formatDateTime } from '../../utils/helpers';
-import { useState } from 'react';
+import { formatDateTime, showToast } from '../../utils/helpers';
+import { useState, useEffect } from 'react';
+import api from '../../utils/api';
 import Modal from './Modal';
 
 export default function TaskCard({ task, onStatusChange, onView, onEdit, onDelete, onForward, showActions = true, canEdit = true }) {
     const isOverdue = isTaskOverdue(task.dueDate, task.status);
     const [isChangingStatus, setIsChangingStatus] = useState(false);
     const [showComments, setShowComments] = useState(false);
+    const [localComments, setLocalComments] = useState(task.comments || []);
+    const [newComment, setNewComment] = useState('');
+    const [isSubmittingComment, setIsSubmittingComment] = useState(false);
+
+    useEffect(() => {
+        setLocalComments(task.comments || []);
+    }, [task.comments]);
+
+    const handleAddComment = async () => {
+        if (!newComment.trim()) return;
+
+        setIsSubmittingComment(true);
+        try {
+            const response = await api.post(`/tasks/${task._id}/comments`, {
+                text: newComment
+            });
+
+            if (response.data.success) {
+                const updatedTask = response.data.task;
+                setLocalComments(updatedTask.comments || []);
+                setNewComment('');
+                showToast('Comment added', 'success');
+            }
+        } catch (error) {
+            console.error('Error adding comment:', error);
+            showToast('Failed to add comment', 'error');
+        } finally {
+            setIsSubmittingComment(false);
+        }
+    };
 
     const handleStatusChange = async (newStatus) => {
         if (newStatus === task.status) return;
@@ -83,10 +114,10 @@ export default function TaskCard({ task, onStatusChange, onView, onEdit, onDelet
                             {onForward && (
                                 <button
                                     onClick={(e) => { e.stopPropagation(); onForward(task); }}
-                                    className="p-1.5 cursor-pointer hover:bg-blue-50 rounded-lg text-gray-400 hover:text-blue-600 transition-colors"
+                                    className="p-1.5 cursor-pointer text-xs flex items-center gap-1 hover:bg-blue-50 rounded-lg text-gray-400 hover:text-blue-600 transition-colors"
                                     title="Forward Task"
                                 >
-                                    <CornerUpRight className="w-3.5 h-3.5" />
+                                    Forward <CornerUpRight className="w-3.5 h-3.5" />
                                 </button>
                             )}
                             {onEdit && (
@@ -196,23 +227,21 @@ export default function TaskCard({ task, onStatusChange, onView, onEdit, onDelet
                     </div>
 
                     {/* Comments Button */}
-                    {task.comments && task.comments.length > 0 && (
-                        <div className="flex flex-col gap-2 pt-2">
-                            <button
-                                onClick={(e) => {
-                                    e.stopPropagation();
-                                    setShowComments(true);
-                                }}
-                                className="flex cursor-pointer items-center gap-2 px-2 py-1 bg-primary-50 hover:bg-primary-100 text-primary-600 rounded-lg transition-colors border border-primary-200"
-                            >
-                                <MessageSquare className="w-4 h-4" />
-                                <span className="text-sm font-semibold">View Comments</span>
-                                <span className="px-2 py-0.5 bg-primary-600 text-white text-xs rounded-full">
-                                    {task.comments.length}
-                                </span>
-                            </button>
-                        </div>
-                    )}
+                    <div className="flex flex-col gap-2 pt-2">
+                        <button
+                            onClick={(e) => {
+                                e.stopPropagation();
+                                setShowComments(true);
+                            }}
+                            className="flex cursor-pointer items-center gap-2 px-2 py-1 bg-primary-50 hover:bg-primary-100 text-primary-600 rounded-lg transition-colors border border-primary-200"
+                        >
+                            <MessageSquare className="w-4 h-4" />
+                            <span className="text-sm font-semibold">View Comments</span>
+                            <span className="px-2 py-0.5 bg-primary-600 text-white text-xs rounded-full">
+                                {localComments.length}
+                            </span>
+                        </button>
+                    </div>
                 </div>
 
                 {/* Notes Section */}
@@ -278,14 +307,7 @@ export default function TaskCard({ task, onStatusChange, onView, onEdit, onDelet
                         </div>
                     )}
 
-                    {onView && (
-                        <button
-                            onClick={() => onView(task)}
-                            className="px-3.5 py-2 cursor-pointer flex items-center gap-2 bg-white hover:bg-gray-50 text-gray-600 font-semibold text-xs border border-gray-200 rounded-lg shadow-sm transition-all hover:text-primary-600 hover:border-primary-200 whitespace-nowrap"
-                        >
-                            <PlusIcon className="w-4 h-4" /> Add Comment
-                        </button>
-                    )}
+                    {/* Add Comment Button Removed */}
                 </div>
             )}
 
@@ -301,51 +323,88 @@ export default function TaskCard({ task, onStatusChange, onView, onEdit, onDelet
             <Modal
                 isOpen={showComments}
                 onClose={() => setShowComments(false)}
-                title={`Comments (${task.comments?.length || 0})`}
+                title={`Comments (${localComments.length})`}
                 size="medium"
             >
-                <div className="space-y-4">
-                    {task.comments && task.comments.length > 0 ? (
-                        task.comments.map((comment, index) => (
-                            <div key={index} className="flex gap-3 p-4 bg-gray-50 rounded-xl hover:bg-gray-100 transition-colors border border-gray-100">
-                                <div className="flex-shrink-0">
-                                    <div className="w-10 h-10 rounded-full bg-gradient-to-br from-primary-500 to-indigo-600 flex items-center justify-center text-white text-sm font-bold shadow-sm">
-                                        {comment.createdByName?.charAt(0) || 'U'}
+                <div className="flex flex-col h-[500px]">
+                    <div className="flex-1 overflow-y-auto space-y-4 pr-2 mb-4">
+                        {localComments.length > 0 ? (
+                            localComments.map((comment, index) => (
+                                <div key={index} className="flex gap-4 p-4 bg-gray-50 rounded-2xl hover:bg-gray-100 transition-all duration-300 border border-gray-100 group/comment">
+                                    <div className="flex-shrink-0 pt-1">
+                                        <div className="w-10 h-10 rounded-full bg-gradient-to-br from-primary-500 to-indigo-600 flex items-center justify-center text-white text-sm font-bold shadow-md ring-2 ring-white">
+                                            {comment.createdByName?.charAt(0) || 'U'}
+                                        </div>
                                     </div>
-                                </div>
-                                <div className="flex-1 min-w-0">
-                                    <div className="flex items-center justify-between mb-1.5">
-                                        <div className="flex items-center gap-2">
-                                            <span className="text-sm font-bold text-gray-900">
-                                                {comment.createdByName}
+                                    <div className="flex-1 min-w-0">
+                                        {/* Comment Header */}
+                                        <div className="flex flex-wrap items-start justify-between gap-y-2 mb-2">
+                                            <div className="flex flex-col gap-2">
+                                                <span className="text-sm font-bold text-gray-900 leading-none">
+                                                    {comment.createdByName}
+                                                </span>
+                                                <div className="flex flex-wrap items-center gap-2">
+                                                    {(comment.userDesignation || comment.createdBy?.designation || comment.userRole) && (
+                                                        <span className="text-[10px] font-bold text-primary-700 bg-primary-50 px-2 py-0.5 rounded-full border border-primary-100 uppercase tracking-wide">
+                                                            {comment.userDesignation || comment.createdBy?.designation || comment.userRole}
+                                                        </span>
+                                                    )}
+                                                    {comment.userDepartment && (
+                                                        <span className="text-[10px] font-bold text-indigo-700 bg-indigo-50 px-2 py-0.5 rounded-full border border-indigo-100 uppercase tracking-wide">
+                                                            {comment.userDepartment}
+                                                        </span>
+                                                    )}
+                                                </div>
+                                            </div>
+                                            <span className="text-[10px] font-medium text-gray-400 flex items-center gap-1 bg-white px-2 py-1 rounded-full border border-gray-100 shadow-sm whitespace-nowrap">
+                                                <Clock className="w-3 h-3" />
+                                                {formatDateTime1(comment.createdAt)}
                                             </span>
-                                            {(comment.userDesignation || comment.createdBy?.designation || comment.userRole) && (
-                                                <span className="text-[10px] font-semibold text-primary-700 bg-primary-50 px-2 py-0.5 rounded-full border border-primary-100 uppercase tracking-wide">
-                                                    {comment.userDesignation || comment.createdBy?.designation || comment.userRole}
-                                                </span>
-                                            )}
-                                            {comment.userDepartment && (
-                                                <span className="text-[10px] font-semibold text-indigo-700 bg-indigo-50 px-2 py-0.5 rounded-full border border-indigo-100 uppercase tracking-wide">
-                                                    {comment.userDepartment}
-                                                </span>
-                                            )}
                                         </div>
-                                        <div className="flex items-center text-xs text-gray-400 gap-1.5">
-                                            <Clock className="w-3 h-3" />
-                                            {formatDateTime1(comment.createdAt)}
+
+                                        {/* Comment Body */}
+                                        <div className="bg-white rounded-xl p-3 border border-gray-100 shadow-sm text-sm text-gray-700 leading-relaxed whitespace-pre-wrap">
+                                            {comment.text}
                                         </div>
                                     </div>
-                                    <p className="text-sm text-gray-700 leading-relaxed whitespace-pre-wrap">
-                                        {comment.text}
-                                    </p>
                                 </div>
+                            ))
+                        ) : (
+                            <div className="text-center py-8 text-gray-500">
+                                No comments yet. Be the first to add one!
                             </div>
-                        ))
-                    ) : (
-                        <div className="text-center py-8 text-gray-500">
-                            No comments yet.
+                        )}
+                    </div>
+
+                    {/* Add Comment Input */}
+                    <div className="pt-4 border-t border-gray-100 bg-white">
+                        <div className="flex gap-2">
+                            <input
+                                type="text"
+                                value={newComment}
+                                onChange={(e) => setNewComment(e.target.value)}
+                                onKeyDown={(e) => {
+                                    if (e.key === 'Enter' && !e.shiftKey) {
+                                        e.preventDefault();
+                                        handleAddComment();
+                                    }
+                                }}
+                                placeholder="Type a comment..."
+                                className="flex-1 px-4 py-2 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary-500/20 focus:border-primary-500 transition-all text-sm"
+                            />
+                            <button
+                                onClick={handleAddComment}
+                                disabled={isSubmittingComment || !newComment.trim()}
+                                className="px-4 py-2 bg-primary-600 hover:bg-primary-700 text-white rounded-xl font-semibold text-sm transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                            >
+                                {isSubmittingComment ? (
+                                    <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                                ) : (
+                                    <Send className="w-4 h-4" />
+                                )}
+                            </button>
                         </div>
-                    )}
+                    </div>
                 </div>
             </Modal>
         </div>

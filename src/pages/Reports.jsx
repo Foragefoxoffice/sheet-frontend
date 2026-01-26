@@ -112,6 +112,7 @@ export default function Reports() {
             overdueTasks: 0,
         }
     });
+    const [currentPage, setCurrentPage] = useState(1);
 
     useEffect(() => {
         fetchReportData();
@@ -311,8 +312,9 @@ export default function Reports() {
                     <p className="text-gray-500 mt-1">Get insights into task distribution and team performance</p>
                 </div>
                 <div className="flex items-center gap-3 bg-gray-50 p-1.5 rounded-xl border border-gray-200">
-                    <div className="pl-3 pr-2 border-r border-gray-200">
+                    <div className="pl-3 pr-3 border-r border-gray-200 flex items-center gap-2">
                         <Calendar className="w-5 h-5 text-gray-500" />
+                        <span className="text-sm font-medium text-gray-600 hidden md:block">Filter Period</span>
                     </div>
                     <RangePicker
                         value={dateRange}
@@ -537,6 +539,12 @@ export default function Reports() {
                             <Table
                                 columns={[
                                     {
+                                        title: 'S.No',
+                                        key: 'sno',
+                                        width: 70,
+                                        render: (_, __, index) => (currentPage - 1) * 5 + index + 1
+                                    },
+                                    {
                                         title: 'Employee',
                                         dataIndex: 'name',
                                         key: 'name',
@@ -590,7 +598,12 @@ export default function Reports() {
                                     }
                                 ]}
                                 dataSource={userPerformance}
-                                pagination={{ pageSize: 5, size: 'small' }}
+                                pagination={{
+                                    pageSize: 5,
+                                    size: 'small',
+                                    current: currentPage,
+                                    onChange: (page) => setCurrentPage(page)
+                                }}
                                 rowKey="key"
                                 size="middle"
                                 className="custom-table"

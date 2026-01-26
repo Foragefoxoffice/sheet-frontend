@@ -758,3 +758,7 @@ html {
 .ant-select-dropdown-placement-topLeft {
   width: 280px !important;
 }
+
+.ant-select-dropdown-placement-bottomLeft {
+  width: 280px !important;
+}

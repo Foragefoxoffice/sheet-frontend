@@ -189,13 +189,13 @@ export default function Departments() {
 
     // Check role-based permissions combined with user permissions
     const canCreateDepartment = user?.permissions?.createDepartments &&
-        ['superadmin', 'director', 'generalmanager'].includes(userRoleName);
+        ['superadmin', 'maindirector', 'director', 'generalmanager'].includes(userRoleName);
 
     const canEditDepartment = user?.permissions?.editDepartments &&
-        ['superadmin', 'director', 'generalmanager', 'manager'].includes(userRoleName);
+        ['superadmin', 'maindirector', 'director', 'generalmanager'].includes(userRoleName);
 
     const canDeleteDepartment = user?.permissions?.deleteDepartments &&
-        ['superadmin', 'director'].includes(userRoleName);
+        ['superadmin', 'maindirector', 'director', 'generalmanager'].includes(userRoleName);
 
     if (loading) {
         return <DepartmentsSkeleton />;

@@ -154,6 +154,7 @@ export default function AllTasks() {
     const [showCreateModal, setShowCreateModal] = useState(false);
     const [users, setUsers] = useState([]);
     const [assignableUsers, setAssignableUsers] = useState([]);
+    const [allUsersList, setAllUsersList] = useState([]); // All users for "Task Given By" dropdown
     const [newComment, setNewComment] = useState('');
     const [currentPage, setCurrentPage] = useState(1);
     const [pageSize, setPageSize] = useState(12);
@@ -438,8 +439,9 @@ export default function AllTasks() {
     }, [users, departmentFilter, roleFilter]);
 
     // Task Given By options with department grouping (excludes current user)
+    // Uses allUsersList to show ALL users regardless of role restrictions
     const taskGivenByOptions = useMemo(() => {
-        const usersList = users.filter(u => u.email !== user.email);
+        const usersList = allUsersList.filter(u => u.email !== user.email);
 
         // Group users by department
         const usersWithDept = usersList.map(u => ({
@@ -456,7 +458,7 @@ export default function AllTasks() {
         });
 
         return usersWithDept;
-    }, [users, user.email]);
+    }, [allUsersList, user.email]);
 
     // Assignable users with department grouping
     const assignableUsersGrouped = useMemo(() => {
@@ -492,6 +494,7 @@ export default function AllTasks() {
     useEffect(() => {
         fetchAllTasks();
         fetchUsers();
+        fetchAllUsersForGivenBy();
         fetchDepartments();
     }, []);
 
@@ -679,6 +682,18 @@ export default function AllTasks() {
             console.error('Error fetching users:', error);
             // Fallback
             if (users.length > 0) setAssignableUsers(users);
+        }
+    };
+
+    const fetchAllUsersForGivenBy = async () => {
+        try {
+            // Fetch all users without role-based filtering for "Task Given By" dropdown
+            const response = await api.get('/users/list');
+            setAllUsersList(response.data.users || []);
+        } catch (error) {
+            console.error('Error fetching all users for Task Given By:', error);
+            // Fallback to using the filtered users list
+            setAllUsersList(users);
         }
     };
 
@@ -1538,7 +1553,7 @@ export default function AllTasks() {
                                 const canEditStatus = task.assignedToEmail === userEmail;
                                 const isCreator = getId(task.createdBy) === userId;
                                 const userRoleName = (user?.role?.name || user?.role || '').toLowerCase().replace(/\s+/g, '');
-                                const isDirectorRole = ['director', 'maindirector', 'director2', 'generalmanager'].includes(userRoleName);
+                                const isDirectorRole = ['director', 'maindirector', 'generalmanager'].includes(userRoleName);
 
                                 const canEditDetails =
                                     viewFilter !== 'assigned-to-me' &&

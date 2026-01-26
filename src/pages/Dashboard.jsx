@@ -171,13 +171,44 @@ export default function Dashboard() {
 
             const now = new Date();
 
+            const currentRoleName = user?.role?.name?.toLowerCase().replace(/\s+/g, '');
+            const isDepartmentHead = currentRoleName === 'departmenthead' || currentRoleName === 'manager';
+            const userDeptId = user?.department?._id || user?.department;
+
+            let usersCount = usersRes.data.count || 0;
+            let totalTasksCount = uniqueTasks.length;
+            let pendingTasksCount = uniqueTasks.filter(t => t.status === 'Pending').length;
+            let inProgressTasksCount = uniqueTasks.filter(t => t.status === 'In Progress').length;
+            let completedTasksCount = uniqueTasks.filter(t => t.status === 'Completed').length;
+
+            // Specific filtering for Department Head
+            if (isDepartmentHead && userDeptId && usersRes.data.users) {
+                // Filter users: only show those in the same department
+                const deptUsers = usersRes.data.users.filter(u => {
+                    const uDeptId = u.department?._id || u.department;
+                    return uDeptId === userDeptId;
+                });
+                usersCount = deptUsers.length;
+
+                // Filter tasks: only show tasks assigned to the department members
+                const deptTasks = uniqueTasks.filter(t => {
+                    const assigneeDeptId = t.assignedTo?.department?._id || t.assignedTo?.department;
+                    return assigneeDeptId === userDeptId;
+                });
+
+                totalTasksCount = deptTasks.length;
+                pendingTasksCount = deptTasks.filter(t => t.status === 'Pending').length;
+                inProgressTasksCount = deptTasks.filter(t => t.status === 'In Progress').length;
+                completedTasksCount = deptTasks.filter(t => t.status === 'Completed').length;
+            }
+
             setDashboardData({
-                users: usersRes.data.count || 0,
+                users: usersCount,
                 tasks: {
-                    total: uniqueTasks.length,
-                    pending: uniqueTasks.filter(t => t.status === 'Pending').length,
-                    inProgress: uniqueTasks.filter(t => t.status === 'In Progress').length,
-                    completed: uniqueTasks.filter(t => t.status === 'Completed').length,
+                    total: totalTasksCount,
+                    pending: pendingTasksCount,
+                    inProgress: inProgressTasksCount,
+                    completed: completedTasksCount,
                 },
                 myTasks: {
                     total: myTasks.length,

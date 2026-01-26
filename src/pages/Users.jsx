@@ -193,20 +193,44 @@ export default function Users() {
 
     const fetchRoles = async () => {
         try {
-            const response = await api.get('/users/available-roles');
-            // available-roles returns only roles that the user can manage
-            const availableRoles = response.data.roles || [];
+            const userRoleName = (user?.role?.name || user?.role || '').toLowerCase().replace(/\s+/g, '');
+            const isHighLevel = ['superadmin', 'maindirector', 'director', 'generalmanager'].includes(userRoleName);
 
-            // Also include current user's own role for display purposes
+            let fetchedRoles = [];
+
+            if (isHighLevel) {
+                const response = await api.get('/roles');
+                fetchedRoles = response.data.roles || [];
+            } else {
+                const response = await api.get('/users/available-roles');
+                fetchedRoles = response.data.roles || [];
+            }
+
+            // Also include current user's own role for display purposes if not already in list
             const currentUserRole = user?.role;
             if (currentUserRole && typeof currentUserRole === 'object') {
-                const hasCurrentRole = availableRoles.some(r => r._id === currentUserRole._id);
+                const hasCurrentRole = fetchedRoles.some(r => r._id === currentUserRole._id);
                 if (!hasCurrentRole) {
-                    availableRoles.push(currentUserRole);
+                    fetchedRoles.push(currentUserRole);
                 }
             }
 
-            setRoles(availableRoles);
+            // ENHANCEMENT: Merge roles found in the users list to ensure we have tabs for all visible user roles
+            // This is critical for roles like Department Head who can see users but might not manage all their roles
+            const userRoles = users.map(u => u.role).filter(Boolean);
+            const seenRoleIds = new Set(fetchedRoles.map(r => r._id));
+
+            userRoles.forEach(role => {
+                if (typeof role === 'object') {
+                    const roleId = role._id;
+                    if (!seenRoleIds.has(roleId)) {
+                        seenRoleIds.add(roleId);
+                        fetchedRoles.push(role);
+                    }
+                }
+            });
+
+            setRoles(fetchedRoles);
         } catch (error) {
             console.error('Error fetching roles:', error);
             // Fallback: extract unique roles from users list
@@ -294,7 +318,15 @@ export default function Users() {
     };
 
     // Get user role name
-    const userRoleName = user?.role?.name || user?.role;
+    const userRoleNameRaw = user?.role?.name || user?.role;
+    const userRoleName = userRoleNameRaw ? userRoleNameRaw.toLowerCase().replace(/\s+/g, '') : '';
+
+    // Check permissions
+    const canEditUser = user?.permissions?.editUsers &&
+        ['superadmin', 'maindirector', 'director', 'generalmanager'].includes(userRoleName);
+
+    const canDeleteUser = user?.permissions?.deleteUsers &&
+        ['superadmin', 'maindirector', 'director', 'generalmanager'].includes(userRoleName);
 
     // Create tabs based on available roles (roles user can manage)
     // Show "All Members" tab plus tabs for each role the user can manage
@@ -349,14 +381,16 @@ export default function Users() {
                     <h1 className="text-2xl md:text-3xl font-extrabold text-[#253094]">Team Members</h1>
                     <p className="text-gray-500 mt-1 font-medium">Manage your team members, roles, and permissions</p>
                 </div>
-                <Button
-                    type="primary"
-                    onClick={() => setShowCreateModal(true)}
-                    className="bg-primary hover:bg-primary-600 flex items-center justify-center gap-2 h-11 px-6 w-full md:w-auto rounded-xl font-bold shadow-lg shadow-primary/20 hover:shadow-primary/30 transition-all hover:-translate-y-0.5"
-                    icon={<UserPlus className="w-5 h-5" />}
-                >
-                    Add Member
-                </Button>
+                {user?.permissions?.createUsers && (
+                    <Button
+                        type="primary"
+                        onClick={() => setShowCreateModal(true)}
+                        className="bg-primary hover:bg-primary-600 flex items-center justify-center gap-2 h-11 px-6 w-full md:w-auto rounded-xl font-bold shadow-lg shadow-primary/20 hover:shadow-primary/30 transition-all hover:-translate-y-0.5"
+                        icon={<UserPlus className="w-5 h-5" />}
+                    >
+                        Add Member
+                    </Button>
+                )}
             </div>
 
             {/* Stats Cards */}
@@ -453,7 +487,7 @@ export default function Users() {
                     <p className="text-gray-600 mb-6">
                         {searchQuery ? 'Try adjusting your search' : 'Get started by creating your first team member'}
                     </p>
-                    {!searchQuery && (
+                    {!searchQuery && user?.permissions?.createUsers && (
                         <Button
                             type="primary"
                             onClick={() => setShowCreateModal(true)}
@@ -514,19 +548,23 @@ export default function Users() {
                                 </div>
 
                                 <div className="flex gap-3 pt-2">
-                                    <Button
-                                        onClick={() => handleEdit(member)}
-                                        className="flex-1 h-10 flex items-center justify-center gap-2 border-primary text-primary hover:bg-primary-50 rounded-xl font-semibold"
-                                        icon={<Edit className="w-4 h-4" />}
-                                    >
-                                        Edit
-                                    </Button>
-                                    <Button
-                                        danger
-                                        onClick={() => handleDelete(member._id)}
-                                        className="h-10 px-4 rounded-xl hover:bg-red-50"
-                                        icon={<Trash2 className="w-4 h-4" />}
-                                    />
+                                    {canEditUser && (
+                                        <Button
+                                            onClick={() => handleEdit(member)}
+                                            className="flex-1 h-10 flex items-center justify-center gap-2 border-primary text-primary hover:bg-primary-50 rounded-xl font-semibold"
+                                            icon={<Edit className="w-4 h-4" />}
+                                        >
+                                            Edit
+                                        </Button>
+                                    )}
+                                    {canDeleteUser && (
+                                        <Button
+                                            danger
+                                            onClick={() => handleDelete(member._id)}
+                                            className="h-10 px-4 rounded-xl hover:bg-red-50"
+                                            icon={<Trash2 className="w-4 h-4" />}
+                                        />
+                                    )}
                                 </div>
                             </div>
                         </div>
