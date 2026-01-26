@@ -376,10 +376,13 @@ export default function AllTasks() {
     const [departments, setDepartments] = useState([]);
     const [showMobileFilters, setShowMobileFilters] = useState(false);
 
-    // Derive available roles dynamically from users
+    // Derive available roles dynamically from allUsersList
     const roles = useMemo(() => {
         const uniqueRoles = new Map();
-        users.forEach(u => {
+        // Use allUsersList to ensure we capture roles from all potential users, not just assignable ones
+        const sourceList = allUsersList.length > 0 ? allUsersList : users;
+
+        sourceList.forEach(u => {
             if (u.role) {
                 const roleName = u.role.name || u.role;
                 const displayName = u.role.displayName || u.role.name || u.role;
@@ -391,11 +394,22 @@ export default function AllTasks() {
         return Array.from(uniqueRoles.entries())
             .map(([value, label]) => ({ value, label }))
             .sort((a, b) => a.label.localeCompare(b.label));
-    }, [users]);
+    }, [users, allUsersList]);
 
     // Filter user options based on selected department and role
     const filteredUserOptions = useMemo(() => {
         let filtered = users;
+
+        // Strict User Filter for Department Heads in Department Tasks Tab
+        if (userRoleName === 'departmenthead' && viewFilter === 'department-tasks') {
+            const myDeptId = user.department?._id || user.department;
+            if (myDeptId) {
+                filtered = filtered.filter(u => {
+                    const uDeptId = u.department?._id || u.department;
+                    return uDeptId && String(uDeptId) === String(myDeptId);
+                });
+            }
+        }
 
         if (departmentFilter !== 'all') {
             filtered = filtered.filter(u => {
@@ -433,10 +447,9 @@ export default function AllTasks() {
                     if (a.department !== b.department) {
                         return a.department.localeCompare(b.department);
                     }
-                    return a.label.localeCompare(b.label);
                 })
         ];
-    }, [users, departmentFilter, roleFilter]);
+    }, [users, departmentFilter, roleFilter, userRoleName, viewFilter, user.department]);
 
     // Task Given By options with department grouping (excludes current user)
     // Uses allUsersList to show ALL users regardless of role restrictions
@@ -891,7 +904,24 @@ export default function AllTasks() {
     });
 
     // Filter by department
+    // Filter by department
     const departmentFilteredTasks = searchedTasks.filter(task => {
+        // Strict department filtering for Department Head ONLY in Department Tasks tab
+        if (userRoleName === 'departmenthead' && viewFilter === 'department-tasks') {
+            // Find assignee details
+            const assignedUser = users.find(u => u.email === task.assignedToEmail);
+
+            // Always include tasks assigned to self if they appear in this list (safety check)
+            if (task.assignedToEmail === user?.email) return true;
+
+            // Get IDs safely
+            const myDeptId = user.department?._id || user.department;
+            const userDeptId = assignedUser?.department?._id || assignedUser?.department;
+
+            // Match department ID strictly
+            return myDeptId && userDeptId && String(myDeptId) === String(userDeptId);
+        }
+
         if (departmentFilter === 'all') return true;
         const assignedUser = users.find(u => u.email === task.assignedToEmail);
         return assignedUser?.department?._id === departmentFilter || assignedUser?.department === departmentFilter;
@@ -1293,52 +1323,68 @@ export default function AllTasks() {
                     {(() => {
                         // Get tab-specific filter permissions
                         const getFilterPermissions = () => {
+                            let perms = { department: false, priority: false, role: false, user: false };
+
                             switch (viewFilter) {
                                 case 'all-tasks':
-                                    return {
+                                    perms = {
                                         department: user?.permissions?.filterAllTasksDepartment,
                                         priority: user?.permissions?.filterAllTasksPriority,
                                         role: user?.permissions?.filterAllTasksRole,
                                         user: user?.permissions?.filterAllTasksUser,
                                     };
+                                    break;
                                 case 'department-tasks':
-                                    return {
+                                    perms = {
                                         department: user?.permissions?.filterDeptTasksDepartment,
                                         priority: user?.permissions?.filterDeptTasksPriority,
                                         role: user?.permissions?.filterDeptTasksRole,
                                         user: user?.permissions?.filterDeptTasksUser,
                                     };
+                                    break;
                                 case 'assigned-to-me':
-                                    return {
+                                    perms = {
                                         department: false,
                                         priority: user?.permissions?.filterAssignedToMePriority,
                                         role: user?.permissions?.filterAssignedToMeRole,
                                         user: false,
                                     };
+                                    break;
                                 case 'i-assigned':
-                                    return {
+                                    perms = {
                                         department: user?.permissions?.filterIAssignedDepartment,
                                         priority: user?.permissions?.filterIAssignedPriority,
                                         role: user?.permissions?.filterIAssignedRole,
                                         user: true,
                                     };
+                                    break;
                                 case 'self-tasks':
-                                    return {
+                                    perms = {
                                         department: user?.permissions?.filterSelfTasksDepartment,
                                         priority: user?.permissions?.filterSelfTasksPriority,
                                         role: user?.permissions?.filterSelfTasksRole,
                                         user: user?.permissions?.filterSelfTasksUser,
                                     };
+                                    break;
                                 case 'forwarded-tasks':
-                                    return {
+                                    perms = {
                                         department: false,
                                         priority: true,
                                         role: true,
                                         user: true,
                                     };
+                                    break;
                                 default:
-                                    return { department: false, priority: false, role: false, user: false };
+                                    perms = { department: false, priority: false, role: false, user: false };
                             }
+
+                            // Override: Department Heads should not see Department or Role filters
+                            if (userRoleName === 'departmenthead') {
+                                perms.department = false;
+                                perms.role = false;
+                            }
+
+                            return perms;
                         };
 
                         const filterPerms = getFilterPermissions();
@@ -1930,47 +1976,62 @@ export default function AllTasks() {
                 title="Filters & Search"
             >
                 {(() => {
-                    // Get tab-specific filter permissions for mobile
+                    // Get tab-specific filter permissions
                     const getFilterPermissions = () => {
+                        let perms = { department: false, priority: false, role: false, user: false };
+
                         switch (viewFilter) {
                             case 'all-tasks':
-                                return {
+                                perms = {
                                     department: user?.permissions?.filterAllTasksDepartment,
                                     priority: user?.permissions?.filterAllTasksPriority,
                                     role: user?.permissions?.filterAllTasksRole,
                                     user: user?.permissions?.filterAllTasksUser,
                                 };
+                                break;
                             case 'department-tasks':
-                                return {
+                                perms = {
                                     department: user?.permissions?.filterDeptTasksDepartment,
                                     priority: user?.permissions?.filterDeptTasksPriority,
                                     role: user?.permissions?.filterDeptTasksRole,
                                     user: user?.permissions?.filterDeptTasksUser,
                                 };
+                                break;
                             case 'assigned-to-me':
-                                return {
+                                perms = {
                                     department: false,
                                     priority: user?.permissions?.filterAssignedToMePriority,
                                     role: user?.permissions?.filterAssignedToMeRole,
                                     user: false,
                                 };
+                                break;
                             case 'i-assigned':
-                                return {
+                                perms = {
                                     department: user?.permissions?.filterIAssignedDepartment,
                                     priority: user?.permissions?.filterIAssignedPriority,
                                     role: user?.permissions?.filterIAssignedRole,
                                     user: true,
                                 };
+                                break;
                             case 'self-tasks':
-                                return {
+                                perms = {
                                     department: user?.permissions?.filterSelfTasksDepartment,
                                     priority: user?.permissions?.filterSelfTasksPriority,
                                     role: user?.permissions?.filterSelfTasksRole,
                                     user: user?.permissions?.filterSelfTasksUser,
                                 };
+                                break;
                             default:
-                                return { department: false, priority: false, role: false, user: false };
+                                perms = { department: false, priority: false, role: false, user: false };
                         }
+
+                        // Override: Department Heads should not see Department or Role filters
+                        if (userRoleName === 'departmenthead') {
+                            perms.department = false;
+                            perms.role = false;
+                        }
+
+                        return perms;
                     };
 
                     const filterPerms = getFilterPermissions();
