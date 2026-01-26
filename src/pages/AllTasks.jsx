@@ -1,7 +1,7 @@
 import { useState, useEffect, useMemo } from 'react';
 import { Select, DatePicker, TimePicker, Input, Checkbox, Button, Form, Pagination, Modal as AntModal, Skeleton } from 'antd';
 import dayjs from 'dayjs';
-import { CheckCircle2, ListTodo, Plus, Search, Filter, Users, Send, Target, Briefcase, LayoutGrid } from 'lucide-react';
+import { CheckCircle2, ListTodo, Plus, Search, Filter, Users, Send, Target, Briefcase, LayoutGrid, CornerUpRight } from 'lucide-react';
 import { useAuth } from '../hooks/useAuth';
 import TaskCard from '../components/common/TaskCard';
 import Modal from '../components/common/Modal';
@@ -137,12 +137,17 @@ function AllTasksSkeleton({
 
 export default function AllTasks() {
     const { user } = useAuth();
+    const userRoleName = (user?.role?.name || user?.role || '').toLowerCase().replace(/\s+/g, '');
     const [editingTask, setEditingTask] = useState(null);
     const [allTasks, setAllTasks] = useState([]);
     const [loading, setLoading] = useState(true);
     const [showDeleteModal, setShowDeleteModal] = useState(false);
     const [taskToDelete, setTaskToDelete] = useState(null);
-    const [viewFilter, setViewFilter] = useState('assigned-to-me');
+    const [viewFilter, setViewFilter] = useState(() => {
+        // Default to 'assigned-to-me'
+        // If Dept Head/Manager wants Forwarded Tasks as default? Probably not.
+        return 'assigned-to-me';
+    });
     const [statusFilter, setStatusFilter] = useState('all');
     const [selectedTask, setSelectedTask] = useState(null);
     const [showDetailModal, setShowDetailModal] = useState(false);
@@ -163,6 +168,13 @@ export default function AllTasks() {
         taskGivenBy: '',
     });
 
+    // Forwarding specific states
+    const [showForwardModal, setShowForwardModal] = useState(false);
+    const [forwardingTask, setForwardingTask] = useState(null);
+    const [forwardUsers, setForwardUsers] = useState([]);
+    const [selectedForwardUser, setSelectedForwardUser] = useState('');
+    const [forwardNote, setForwardNote] = useState('');
+
     const handleDeleteTask = (task) => {
         setTaskToDelete(task);
         setShowDeleteModal(true);
@@ -182,6 +194,95 @@ export default function AllTasks() {
         } catch (error) {
             console.error('Delete task error:', error);
             showToast(error.response?.data?.error || 'Failed to delete task', 'error');
+        }
+    };
+
+    const handleForwardTask = (task) => {
+        setForwardingTask(task);
+        setSelectedForwardUser('');
+        setForwardNote('');
+
+        const currentUserRole = (user?.role?.name || user?.role || '').toLowerCase().replace(/\s+/g, '');
+        let availableUsers = [];
+
+        // Helper to get ID string safely
+        const getDeptId = (dept) => {
+            if (!dept) return '';
+            if (typeof dept === 'object' && dept._id) return dept._id.toString();
+            return dept.toString();
+        };
+
+        const myDeptId = getDeptId(user.department);
+
+        // Logic for Department Head/Manager
+        if (['departmenthead', 'manager'].includes(currentUserRole)) {
+            // "Give same assign to field option for forward task without other department head"
+            // Start with Assignable Users (which includes: Own Staff + Other Dept Heads + PMs + Standalone)
+            const sourceUsers = assignableUsers.length > 0 ? assignableUsers : users;
+
+            availableUsers = sourceUsers.filter(u => {
+                const uDeptId = getDeptId(u.department);
+                const uRole = (u.role?.name || u.role || '').toLowerCase().replace(/\s+/g, '');
+                const isSelf = u.email === user.email;
+
+                // Always exclude self
+                if (isSelf) return false;
+
+                // Always exclude the person currently assigned (forwarding away from them)
+                if (u.email === task.assignedToEmail) return false;
+
+                // CRITICAL RULE: "without other department head"
+                // If user is a Department Head role (or Manager)
+                // Filter out if they are a Department Head/Manager in a DIFFERENT department
+                if (['departmenthead', 'manager'].includes(uRole)) {
+                    if (uDeptId !== myDeptId && uDeptId !== '') {
+                        return false;
+                    }
+                }
+
+                // If they passed the above exclusion, they are valid (assuming they were in assignableUsers)
+                return true;
+            });
+        }
+        // Logic for other roles (Director, GM, etc) -> Standard Assignable Logic
+        else {
+            availableUsers = assignableUsers.filter(u => u.email !== task.assignedToEmail);
+        }
+
+        setForwardUsers(availableUsers);
+        setShowForwardModal(true);
+    };
+
+    const submitForwardTask = async () => {
+        if (!selectedForwardUser) {
+            showToast('Please select a user to forward to', 'error');
+            return;
+        }
+
+        try {
+            const selectedUserObj = forwardUsers.find(u => u._id === selectedForwardUser || u.email === selectedForwardUser);
+            const newAssignedToEmail = selectedUserObj?.email || selectedForwardUser;
+
+            const updatedNotes = forwardNote
+                ? (forwardingTask.notes ? `${forwardingTask.notes}\n\n[Forwarded]: ${forwardNote}` : `[Forwarded]: ${forwardNote}`)
+                : forwardingTask.notes;
+
+            const payload = {
+                assignedToEmail: newAssignedToEmail,
+                notes: updatedNotes
+            };
+
+            const response = await api.put(`/tasks/${forwardingTask._id}`, payload);
+
+            if (response.data.success) {
+                showToast('Task forwarded successfully', 'success');
+                setShowForwardModal(false);
+                setForwardingTask(null);
+                fetchAllTasks();
+            }
+        } catch (error) {
+            console.error('Forward task error:', error);
+            showToast(error.response?.data?.error || 'Failed to forward task', 'error');
         }
     };
 
@@ -263,6 +364,8 @@ export default function AllTasks() {
             // ... error handling ...
         }
     };
+
+
     const [searchQuery, setSearchQuery] = useState('');
     const [sortBy, setSortBy] = useState('date'); // date, priority, status
     const [departmentFilter, setDepartmentFilter] = useState('all');
@@ -270,7 +373,6 @@ export default function AllTasks() {
     const [roleFilter, setRoleFilter] = useState('all');
     const [userFilter, setUserFilter] = useState('all');
     const [departments, setDepartments] = useState([]);
-    const [showSearch, setShowSearch] = useState(false);
     const [showMobileFilters, setShowMobileFilters] = useState(false);
 
     // Derive available roles dynamically from users
@@ -419,10 +521,20 @@ export default function AllTasks() {
                 task.assignedTo?.email === user?.email
             );
 
+            // Filter tasks I forwarded
+            // Logic: isForwarded is true AND forwardedBy matches my ID (or email)
+            const forwardedByMe = allFetchedTasks.filter(task =>
+                task.isForwarded && (
+                    task.forwardedByEmail === user?.email ||
+                    (task.forwardedBy?._id || task.forwardedBy) === user?._id
+                )
+            );
+
             setAllTasks({
                 assignedToMe,
                 iAssigned,
                 selfTasks,
+                forwardedByMe,
                 allDeptTasks: allFetchedTasks, // This serves as the source for 'all-tasks' and 'department-tasks' views
             });
         } catch (error) {
@@ -505,6 +617,7 @@ export default function AllTasks() {
                         assignedToMe: updateList(prev.assignedToMe),
                         iAssigned: updateList(prev.iAssigned),
                         selfTasks: updateList(prev.selfTasks),
+                        forwardedByMe: updateList(prev.forwardedByMe), // Make sure forwarded tasks are updated too
                         allDeptTasks: updateList(prev.allDeptTasks)
                     };
                 });
@@ -731,6 +844,8 @@ export default function AllTasks() {
                 // For users with viewDepartmentTasks permission, show department tasks
                 // Backend returns department-filtered tasks when user has viewDepartmentTasks
                 return allTasks.allDeptTasks || [];
+            case 'forwarded-tasks':
+                return allTasks.forwardedByMe || [];
             default:
                 return [];
         }
@@ -823,6 +938,7 @@ export default function AllTasks() {
     const canViewAssignedToMe = user?.permissions?.viewAssignedToMeTasks !== false;
     const canViewIAssigned = user?.permissions?.viewIAssignedTasks !== false;
     const canViewSelfTasks = user?.permissions?.viewSelfTasks !== false;
+    const canViewForwardedTasks = ['departmenthead', 'manager'].includes(userRoleName);
 
     // Determine initial view filter based on permissions
     useEffect(() => {
@@ -832,7 +948,8 @@ export default function AllTasks() {
             (viewFilter === 'i-assigned' && canViewIAssigned) ||
             (viewFilter === 'self-tasks' && canViewSelfTasks) ||
             (viewFilter === 'all-tasks' && canViewAllTasks) ||
-            (viewFilter === 'department-tasks' && canViewDeptTasks);
+            (viewFilter === 'department-tasks' && canViewDeptTasks) ||
+            (viewFilter === 'forwarded-tasks' && canViewForwardedTasks);
 
         if (!isCurrentAllowed) {
             if (canViewAssignedToMe) setViewFilter('assigned-to-me');
@@ -840,8 +957,9 @@ export default function AllTasks() {
             else if (canViewSelfTasks) setViewFilter('self-tasks');
             else if (canViewAllTasks) setViewFilter('all-tasks');
             else if (canViewDeptTasks) setViewFilter('department-tasks');
+            else if (canViewForwardedTasks) setViewFilter('forwarded-tasks');
         }
-    }, [user, viewFilter, canViewAssignedToMe, canViewIAssigned, canViewSelfTasks, canViewAllTasks, canViewDeptTasks]);
+    }, [user, viewFilter, canViewAssignedToMe, canViewIAssigned, canViewSelfTasks, canViewAllTasks, canViewDeptTasks, canViewForwardedTasks]);
 
     // Check create permission
     const canCreateTask = user?.permissions?.createTasks !== false; // Default true if undefined
@@ -911,6 +1029,52 @@ export default function AllTasks() {
                 message="Are you sure you want to delete this task? This action cannot be undone."
                 itemName={taskToDelete?.task}
             />
+
+            <Modal
+                isOpen={showForwardModal}
+                onClose={() => setShowForwardModal(false)}
+                title="Forward Task"
+                size="small"
+            >
+                <div className="space-y-4">
+                    <div>
+                        <label className="block text-sm font-semibold text-gray-700 mb-1">
+                            Forward To <span className="text-red-500">*</span>
+                        </label>
+                        <Select
+                            className="w-full"
+                            placeholder="Select staff member"
+                            value={selectedForwardUser}
+                            onChange={setSelectedForwardUser}
+                            showSearch
+                            optionFilterProp="children"
+                        >
+                            {forwardUsers.map(u => (
+                                <Select.Option key={u._id || u.email} value={u.email}>
+                                    {u.name} ({u.designation || 'Staff'})
+                                </Select.Option>
+                            ))}
+                        </Select>
+                    </div>
+                    <div>
+                        <label className="block text-sm font-semibold text-gray-700 mb-1">
+                            Note (Optional)
+                        </label>
+                        <Input.TextArea
+                            rows={3}
+                            placeholder="Add a reason for forwarding..."
+                            value={forwardNote}
+                            onChange={(e) => setForwardNote(e.target.value)}
+                        />
+                    </div>
+                    <div className="flex justify-end gap-3 mt-4">
+                        <Button onClick={() => setShowForwardModal(false)}>Cancel</Button>
+                        <Button type="primary" onClick={submitForwardTask} className="bg-primary hover:bg-primary-600">
+                            Forward Task
+                        </Button>
+                    </div>
+                </div>
+            </Modal>
 
 
 
@@ -1026,6 +1190,20 @@ export default function AllTasks() {
                                     Department Tasks
                                 </button>
                             )}
+                            {/* Forwarded Tasks Tab - Only for Dept Head/Manager */}
+                            {/* Forwarded Tasks Tab - Only for Dept Head/Manager */}
+                            {['departmenthead', 'manager'].includes((user?.role?.name || user?.role || '').toLowerCase().replace(/\s+/g, '')) && (
+                                <button
+                                    onClick={() => setViewFilter('forwarded-tasks')}
+                                    className={`px-5 py-2.5 rounded-xl cursor-pointer font-semibold text-sm transition-all duration-300 ease-out whitespace-nowrap shrink-0 flex items-center gap-2 ${viewFilter === 'forwarded-tasks'
+                                        ? 'bg-purple-500 text-white'
+                                        : 'bg-gray-50 text-gray-600 hover:bg-purple-50 hover:text-purple-500'
+                                        }`}
+                                >
+                                    <CornerUpRight className="w-4 h-4" />
+                                    Forwarded Tasks
+                                </button>
+                            )}
                         </div>
 
                         {/* Bottom Row: Status Filters */}
@@ -1135,6 +1313,13 @@ export default function AllTasks() {
                                         priority: user?.permissions?.filterSelfTasksPriority,
                                         role: user?.permissions?.filterSelfTasksRole,
                                         user: user?.permissions?.filterSelfTasksUser,
+                                    };
+                                case 'forwarded-tasks':
+                                    return {
+                                        department: false,
+                                        priority: true,
+                                        role: true,
+                                        user: true,
                                     };
                                 default:
                                     return { department: false, priority: false, role: false, user: false };
@@ -1364,6 +1549,9 @@ export default function AllTasks() {
                                     ((!isDirectorRole && user.permissions.deleteAllTasks) ||
                                         (isCreator && user.permissions.deleteOwnTasks));
 
+                                const canForward =
+                                    (['departmenthead', 'manager'].includes(userRoleName) && task.assignedToEmail === user.email);
+
                                 return (
                                     <TaskCard
                                         key={task._id}
@@ -1372,6 +1560,7 @@ export default function AllTasks() {
                                         onView={handleViewTask}
                                         onEdit={canEditDetails ? handleEditTask : undefined}
                                         onDelete={canDeleteTask ? handleDeleteTask : undefined}
+                                        onForward={canForward ? handleForwardTask : undefined}
                                         showActions={true}
                                         canEdit={canEditStatus}
                                     />
@@ -1624,6 +1813,30 @@ export default function AllTasks() {
                         </div>
                     )}
 
+                    <div className="mb-6">
+                        <Checkbox
+                            checked={createFormData.isSelfTask}
+                            onChange={(e) => {
+                                const checked = e.target.checked;
+                                if (checked) {
+                                    setCreateFormData(prev => ({
+                                        ...prev,
+                                        isSelfTask: true,
+                                        assignedToEmail: user.email
+                                    }));
+                                } else {
+                                    setCreateFormData(prev => ({
+                                        ...prev,
+                                        isSelfTask: false,
+                                        assignedToEmail: ''
+                                    }));
+                                }
+                            }}
+                        >
+                            This is a self-assigned task
+                        </Checkbox>
+                    </div>
+
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                         <Form.Item label={<span className="font-medium text-gray-700">Priority</span>}>
                             <Select
@@ -1673,30 +1886,6 @@ export default function AllTasks() {
                             size="large"
                         />
                     </Form.Item>
-
-                    <div className="mb-6">
-                        <Checkbox
-                            checked={createFormData.isSelfTask}
-                            onChange={(e) => {
-                                const checked = e.target.checked;
-                                if (checked) {
-                                    setCreateFormData(prev => ({
-                                        ...prev,
-                                        isSelfTask: true,
-                                        assignedToEmail: user.email
-                                    }));
-                                } else {
-                                    setCreateFormData(prev => ({
-                                        ...prev,
-                                        isSelfTask: false,
-                                        assignedToEmail: ''
-                                    }));
-                                }
-                            }}
-                        >
-                            This is a self-assigned task
-                        </Checkbox>
-                    </div>
 
                     <div className="flex gap-3 pt-2">
                         <Button

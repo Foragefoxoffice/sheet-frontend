@@ -1,10 +1,10 @@
-import { Clock, User, Calendar, Tag, ChevronDown, Pencil, Trash2, UserCheck, AlertCircle, MessageSquare, ChevronUp, Plus as PlusIcon, FileText } from 'lucide-react';
+import { Clock, User, Calendar, Tag, ChevronDown, Pencil, Trash2, UserCheck, AlertCircle, MessageSquare, ChevronUp, Plus as PlusIcon, FileText, CornerUpRight } from 'lucide-react';
 import { isTaskOverdue, getTimeRemaining, TASK_STATUS } from '../../utils/taskHelpers';
 import { formatDateTime } from '../../utils/helpers';
 import { useState } from 'react';
 import Modal from './Modal';
 
-export default function TaskCard({ task, onStatusChange, onView, onEdit, onDelete, showActions = true, canEdit = true }) {
+export default function TaskCard({ task, onStatusChange, onView, onEdit, onDelete, onForward, showActions = true, canEdit = true }) {
     const isOverdue = isTaskOverdue(task.dueDate, task.status);
     const [isChangingStatus, setIsChangingStatus] = useState(false);
     const [showComments, setShowComments] = useState(false);
@@ -66,6 +66,11 @@ export default function TaskCard({ task, onStatusChange, onView, onEdit, onDelet
                                     Self
                                 </span>
                             )}
+                            {task.isForwarded && (
+                                <span className="px-1.5 py-0.5 bg-orange-50 text-orange-600 text-[10px] font-bold rounded border border-orange-100 uppercase tracking-wide">
+                                    Forwarded
+                                </span>
+                            )}
                         </div>
                         <h3 className="text-lg font-bold text-gray-900 leading-tight group-hover:text-primary-600 transition-colors line-clamp-2">
                             {task.task}
@@ -73,8 +78,17 @@ export default function TaskCard({ task, onStatusChange, onView, onEdit, onDelet
                     </div>
 
                     {/* Action Buttons */}
-                    {(onEdit || onDelete) && (
+                    {(onEdit || onDelete || onForward) && (
                         <div className="flex items-center gap-1 -mr-2 mt-2">
+                            {onForward && (
+                                <button
+                                    onClick={(e) => { e.stopPropagation(); onForward(task); }}
+                                    className="p-1.5 cursor-pointer hover:bg-blue-50 rounded-lg text-gray-400 hover:text-blue-600 transition-colors"
+                                    title="Forward Task"
+                                >
+                                    <CornerUpRight className="w-3.5 h-3.5" />
+                                </button>
+                            )}
                             {onEdit && (
                                 <button
                                     onClick={(e) => { e.stopPropagation(); onEdit(task); }}
@@ -129,6 +143,23 @@ export default function TaskCard({ task, onStatusChange, onView, onEdit, onDelet
                         </div>
                     </div>
 
+                    {/* Forwarded By */}
+                    {task.isForwarded && (
+                        <div className="flex flex-col gap-2">
+                            <span className="text-[11px] font-semibold text-gray-400 uppercase tracking-wider flex items-center gap-1">
+                                <CornerUpRight className="w-3 h-3" /> Forwarded By
+                            </span>
+                            <div className="flex items-center gap-2">
+                                <div className="w-6 h-6 rounded-full bg-orange-100 flex items-center justify-center text-orange-600 text-xs font-bold ring-2 ring-white">
+                                    {(task.forwardedByName || task.forwardedBy?.name || 'F').charAt(0)}
+                                </div>
+                                <span className="text-sm font-medium text-gray-700 truncate max-w-[100px]" title={task.forwardedByName || task.forwardedBy?.name || 'Unknown'}>
+                                    {task.forwardedByName || task.forwardedBy?.name || 'Unknown'}
+                                </span>
+                            </div>
+                        </div>
+                    )}
+
                     {
                         task.isSelfTask && (
                             <div className="flex flex-col gap-2">
@@ -137,10 +168,10 @@ export default function TaskCard({ task, onStatusChange, onView, onEdit, onDelet
                                 </span>
                                 <div className="flex items-center gap-2">
                                     <div className="w-6 h-6 rounded-full bg-emerald-100 flex items-center justify-center text-emerald-600 text-xs font-bold ring-2 ring-white">
-                                        {task.taskGivenByName?.charAt(0) || 'A'}
+                                        {(task.taskGivenByName || 'Unknown').charAt(0)}
                                     </div>
-                                    <span className="text-sm font-medium text-gray-700 truncate max-w-[100px]" title={task.taskGivenByName}>
-                                        {task.taskGivenByName}
+                                    <span className="text-sm font-medium text-gray-700 truncate max-w-[100px]" title={task.taskGivenByName || 'Unknown'}>
+                                        {task.taskGivenByName || 'Unknown'}
                                     </span>
                                 </div>
                             </div>

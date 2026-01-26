@@ -343,7 +343,7 @@ export default function Approvals() {
                                                 className="bg-[#2D9E36] create-user-btn hover:bg-[#2D9E36]/90 border-none flex items-center justify-center gap-2 h-11 px-6 rounded-xl font-semibold shadow-lg shadow-green-500/20 hover:shadow-green-500/30 transition-all hover:-translate-y-0.5"
                                                 icon={<CheckCircle2 className="w-5 h-5" />}
                                             >
-                                                Approve
+                                                {task.isForwarded && !task.forwarderApproved ? 'Verify & Sent Approval' : 'Approve'}
                                             </Button>
                                             <Button
                                                 danger
@@ -371,7 +371,7 @@ export default function Approvals() {
                         setSelectedTask(null);
                         setComments('');
                     }}
-                    title={`${approvalAction === 'approve' ? 'Approve' : 'Reject'} Task #${selectedTask.sno}`}
+                    title={`${approvalAction === 'approve' ? (selectedTask.isForwarded && !selectedTask.forwarderApproved ? 'Verify & Sent Approval' : 'Approve') : 'Reject'} Task #${selectedTask.sno}`}
                 >
                     <div className="space-y-6">
                         {/* Task Info Summary */}
@@ -420,7 +420,7 @@ export default function Approvals() {
                                     }`}
                                 icon={approvalAction === 'approve' ? <CheckCircle2 className="w-5 h-5" /> : <XCircle className="w-5 h-5" />}
                             >
-                                {approvalAction === 'approve' ? 'Approve Task' : 'Reject Task'}
+                                {approvalAction === 'approve' ? (selectedTask.isForwarded && !selectedTask.forwarderApproved ? 'Verify & Sent Approval' : 'Approve Task') : 'Reject Task'}
                             </Button>
                         </div>
                     </div>
