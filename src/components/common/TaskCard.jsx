@@ -220,9 +220,6 @@ export default function TaskCard({ task, onStatusChange, onView, onEdit, onDelet
                             >
                                 {formatDateTime1(task.dueDate)}
                             </span>
-                            {isOverdue && (
-                                <AlertCircle className="w-3 h-3 text-red-500 animate-pulse" />
-                            )}
                         </div>
                     </div>
 
