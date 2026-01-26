@@ -74,22 +74,36 @@ export default function CreateTask() {
             const diffMs = dueDate - now;
             const diffHours = Math.ceil(diffMs / (1000 * 60 * 60));
 
-            // Resolve emails from IDs
-            let finalAssignedToEmail = values.assignedToEmail;
-            if (!isSelfTask) {
+            // Robustly determine ID and Email
+            let finalAssignedToUserId = null;
+            let finalAssignedToEmail = '';
+
+            if (isSelfTask) {
+                finalAssignedToUserId = user._id;
+                finalAssignedToEmail = user.email;
+            } else {
+                // values.assignedToEmail IS the user ID from the Select component
+                finalAssignedToUserId = values.assignedToEmail;
+
+                // Attempt to resolve email for legacy support/notifications, but primary ID is now set
                 const assignedUser = users.find(u => u._id === values.assignedToEmail);
                 if (assignedUser) {
                     finalAssignedToEmail = assignedUser.email;
                 }
             }
 
+            // Prepare Task Giver data
             let finalTaskGivenBy = values.taskGivenBy;
             let finalTaskGivenByName = '';
+            let finalTaskGivenByUserId = null;
 
             if (values.taskGivenBy) {
+                // values.taskGivenBy is the ID from the Select
+                finalTaskGivenByUserId = values.taskGivenBy;
+
                 const giverUser = users.find(u => u._id === values.taskGivenBy);
                 if (giverUser) {
-                    finalTaskGivenBy = giverUser.email;
+                    finalTaskGivenBy = giverUser.email || '';
                     finalTaskGivenByName = giverUser.name;
                 }
             }
@@ -97,12 +111,14 @@ export default function CreateTask() {
             const requestData = {
                 task: values.task,
                 assignedToEmail: finalAssignedToEmail,
+                assignedToUserId: finalAssignedToUserId,
                 priority: values.priority,
                 durationType: 'hours',
                 durationValue: diffHours,
                 notes: values.notes,
                 isSelfTask: isSelfTask,
                 taskGivenBy: finalTaskGivenBy,
+                taskGivenByUserId: finalTaskGivenByUserId,
                 taskGivenByName: finalTaskGivenByName,
             };
 

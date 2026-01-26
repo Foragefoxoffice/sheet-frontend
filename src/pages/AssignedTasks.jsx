@@ -125,7 +125,7 @@ export default function AssignedTasks() {
             assignedToEmail: assignedToId,
             priority: task.priority,
             targetDate: task.dueDate ? dayjs(task.dueDate) : null,
-            targetTime: task.dueDate ? dayjs(task.dueDate) : null,
+            targetTime: task.dueDate ? dayjs(task.dueDate).format('HH:mm') : '',
             notes: task.notes || '',
             isSelfTask: task.isSelfTask || false,
             taskGivenBy: task.taskGivenBy || '',
@@ -169,9 +169,15 @@ export default function AssignedTasks() {
             const diffMs = dueDate - now;
             const diffHours = Math.ceil(diffMs / (1000 * 60 * 60));
 
-            // Resolve ID to email
+            // IDs are already in createFormData.assignedToEmail (unless selfTask which is email)
             let finalAssignedToEmail = createFormData.assignedToEmail;
-            if (!createFormData.isSelfTask) {
+            let finalAssignedToUserId = null;
+
+            if (createFormData.isSelfTask) {
+                finalAssignedToUserId = user._id;
+                finalAssignedToEmail = user.email;
+            } else {
+                finalAssignedToUserId = createFormData.assignedToEmail;
                 const u = users.find(u => u._id === createFormData.assignedToEmail);
                 if (u) finalAssignedToEmail = u.email;
             }
@@ -179,10 +185,12 @@ export default function AssignedTasks() {
             const payload = {
                 task: createFormData.task,
                 assignedToEmail: finalAssignedToEmail,
+                assignedToUserId: finalAssignedToUserId,
                 priority: createFormData.priority,
                 notes: createFormData.notes,
                 isSelfTask: createFormData.isSelfTask,
                 taskGivenBy: createFormData.taskGivenBy,
+                taskGivenByUserId: createFormData.taskGivenBy, // In this form, taskGivenBy is the ID from user input/edit logic
             };
 
             let response;

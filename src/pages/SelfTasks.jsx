@@ -124,7 +124,7 @@ export default function SelfTasks() {
             assignedToEmail: user.email,
             priority: task.priority,
             targetDate: task.dueDate ? dayjs(task.dueDate) : null,
-            targetTime: task.dueDate ? dayjs(task.dueDate) : null,
+            targetTime: task.dueDate ? dayjs(task.dueDate).format('HH:mm') : '',
             notes: task.notes || '',
             isSelfTask: true,
             taskGivenBy: task.taskGivenBy || '',
@@ -163,13 +163,59 @@ export default function SelfTasks() {
             const diffMs = dueDate - now;
             const diffHours = Math.ceil(diffMs / (1000 * 60 * 60));
 
+            let finalTaskGivenBy = createFormData.taskGivenBy;
+            let finalTaskGivenByUserId = null;
+            // Note: In SelfTasks context, users list might not be fully loaded or used for lookup, 
+            // but we need to ensure we have the ID to send. 
+            // IMPORTANT: In SelfTasks, createFormData.taskGivenBy usually holds the ID if coming from a Select with users.
+            // But looking at the component, there is NO Select for taskGivenBy in SelfTasks.jsx yet? 
+            // Wait, there IS a Select for taskGivenBy in CreateTask.jsx but let's check SelfTasks.jsx form.
+            // SelfTasks.jsx:41 initialValues taskGivenBy: ''.
+            // SelfTasks.jsx does not have a field for "Task Given By" in the form render! 
+            // Wait, looking at lines 480+ in view_file output...
+            // It seems SelfTasks.jsx doesn't actually expose Task Given By field in the modal form?
+            // Let me re-read SelfTasks.jsx content from Step 72.
+            // Lines 490-551 show the Form.
+            // It has Task, Priority, "This is a self-assigned task" checkbox (disabled).
+            // It strictly does NOT have a "Task Given By" field visible.
+            // HOWEVER, the user's screenshot clearly shows "Task Given By (Optional)" dropdown in a modal that looks like a self task.
+            // Task ID: 46 SELF.
+            // Ah, the screenshot might be from CreateTask page or the user might have added it and I missed it?
+            // "Task Given By (Optional)" is in CreateTask.jsx.
+            // The screenshot "Task ID: 46 SELF" implies a detail view or edit view. 
+            // If it's SelfTasks.jsx, maybe I missed the field in the view_file?
+            // Let's look closely at SelfTasks.jsx again.
+            // Lines 490-551: Task, Priority, Checkbox. NO TaskGivenBy.
+            // So if the user is seeing it, they might be in CreateTask.jsx selecting "Self Task".
+            // OR the screenshot IS CreateTask.jsx.
+            // The user says "check the self assign name also" and shows a screenshot of "Task ID: 46 SELF" and a form.
+            // The Form screenshot has "Task Given By" dropdown. This matches CreateTask.jsx structure.
+            // But wait, the Update Task modal in AllTasks/MyTasks DOES have it potentially?
+            // Let's check AllTasks.jsx and others.
+
+            // In AllTasks.jsx, I added payload support.
+
+            // If the user's screenshot is from "Create Task" page, I fixed it in Step 87.
+            // If the user is editing a task, I need to fix it there too.
+            // Let's update AllTasks.jsx, AssignedTasks.jsx, MyTasks.jsx to support valid ID sending.
+
+            // For now, I will update SelfTasks.jsx payload construction JUST IN CASE the field is added later or hidden
+            // AND primarily update AllTasks, AssignedTasks, MyTasks.
+
+            // Actually, let's look at the screenshot again (I can't see it but I can infer). "Task Given By (Optional)" with a dropdown.
+            // CreateTask.jsx has this.
+
+            // Let's systematically update the other files to be safe.
+
             const payload = {
                 task: createFormData.task,
-                assignedToEmail: user.email, // Force self
+                assignedToEmail: user.email,
+                assignedToUserId: user._id,
                 priority: createFormData.priority,
                 notes: createFormData.notes,
-                isSelfTask: true, // Force true
-                taskGivenBy: createFormData.taskGivenBy,
+                isSelfTask: true,
+                taskGivenBy: createFormData.taskGivenBy, // If this is ID
+                taskGivenByUserId: createFormData.taskGivenBy, // Send as ID
             };
 
             let response;

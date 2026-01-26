@@ -206,7 +206,7 @@ export default function AllTasks() {
             assignedToEmail: assignedToId,
             priority: task.priority,
             targetDate: task.dueDate ? dayjs(task.dueDate) : null,
-            targetTime: task.dueDate ? dayjs(task.dueDate) : null,
+            targetTime: task.dueDate ? dayjs(task.dueDate).format('HH:mm') : '',
             notes: task.notes || '',
             isSelfTask: task.isSelfTask || false,
             taskGivenBy: taskGivenById || '',
@@ -229,7 +229,8 @@ export default function AllTasks() {
 
             const payload = {
                 task: createFormData.task,
-                assignedToEmail: createFormData.assignedToEmail,
+                assignedToEmail: createFormData.assignedToEmail, // This might be email or ID if not resolved yet
+                assignedToUserId: createFormData.isSelfTask ? user._id : createFormData.assignedToEmail, // Send ID directly
                 priority: createFormData.priority,
                 dueDate: finalDueDate ? finalDueDate.toISOString() : undefined,
                 notes: createFormData.notes,
@@ -643,15 +644,23 @@ export default function AllTasks() {
             const diffMs = dueDate - now;
             const diffHours = Math.ceil(diffMs / (1000 * 60 * 60));
 
-            // Resolve IDs to emails for backend
+            // IDs are already in createFormData.assignedToEmail, sending checking logic for email just in case
             let finalAssignedToEmail = createFormData.assignedToEmail;
-            if (!createFormData.isSelfTask) {
+            let finalAssignedToUserId = null;
+
+            if (createFormData.isSelfTask) {
+                finalAssignedToUserId = user._id;
+                finalAssignedToEmail = user.email;
+            } else {
+                finalAssignedToUserId = createFormData.assignedToEmail; // Raw ID
                 const u = users.find(u => u._id === createFormData.assignedToEmail);
                 if (u) finalAssignedToEmail = u.email;
             }
 
             let finalTaskGivenBy = createFormData.taskGivenBy;
+            let finalTaskGivenByUserId = null;
             if (createFormData.taskGivenBy) {
+                finalTaskGivenByUserId = createFormData.taskGivenBy; // Raw ID
                 const u = users.find(u => u._id === createFormData.taskGivenBy);
                 if (u) finalTaskGivenBy = u.email;
             }
@@ -659,10 +668,12 @@ export default function AllTasks() {
             const payload = {
                 task: createFormData.task,
                 assignedToEmail: finalAssignedToEmail,
+                assignedToUserId: finalAssignedToUserId,
                 priority: createFormData.priority,
                 notes: createFormData.notes,
                 isSelfTask: createFormData.isSelfTask,
                 taskGivenBy: finalTaskGivenBy,
+                taskGivenByUserId: finalTaskGivenByUserId,
             };
 
             let response;
