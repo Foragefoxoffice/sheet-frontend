@@ -482,7 +482,7 @@ export default function AllTasks() {
         });
 
         return [
-            { value: 'all', label: 'All Users' },
+            { value: 'all', label: viewFilter === 'department-tasks' ? 'Department Users' : 'All Users' },
             ...Array.from(uniqueUsersMap.values())
                 .sort((a, b) => {
                     // Sort by department first, then by name
@@ -533,8 +533,6 @@ export default function AllTasks() {
 
         return usersWithDept;
     }, [assignableUsers]);
-
-
 
     // Reset user filter if selected user is not in the filtered options
     useEffect(() => {
@@ -1535,14 +1533,15 @@ export default function AllTasks() {
                                         )}
 
                                         {/* User Filter */}
-                                        {filterPerms.user && (
+                                        {/* User Filter */}
+                                        {(filterPerms.user || viewFilter === 'department-tasks') && (
                                             <div className="w-full md:w-auto">
                                                 <Select
                                                     value={userFilter}
                                                     onChange={(value) => setUserFilter(value)}
                                                     className="w-full md:w-56"
                                                     showSearch
-                                                    placeholder="Search User"
+                                                    placeholder={viewFilter === 'department-tasks' ? "Department Users" : "Search User"}
                                                     optionFilterProp="label"
                                                     filterOption={(input, option) => {
                                                         if (option?.value === 'all') return true;
@@ -1561,7 +1560,7 @@ export default function AllTasks() {
                                                             if (option.value === 'all') {
                                                                 options.push(
                                                                     <Select.Option key="all" value="all">
-                                                                        All Users
+                                                                        {option.label}
                                                                     </Select.Option>
                                                                 );
                                                             } else {
