@@ -173,7 +173,7 @@ export default function AllTasks() {
     const [showForwardModal, setShowForwardModal] = useState(false);
     const [forwardingTask, setForwardingTask] = useState(null);
     const [forwardUsers, setForwardUsers] = useState([]);
-    const [selectedForwardUser, setSelectedForwardUser] = useState('');
+    const [selectedForwardUsers, setSelectedForwardUsers] = useState([]);
     const [forwardNote, setForwardNote] = useState('');
 
     const handleDeleteTask = (task) => {
@@ -200,7 +200,7 @@ export default function AllTasks() {
 
     const handleForwardTask = (task) => {
         setForwardingTask(task);
-        setSelectedForwardUser('');
+        setSelectedForwardUsers([]);
         setForwardNote('');
 
         const currentUserRole = (user?.role?.name || user?.role || '').toLowerCase().replace(/\s+/g, '');
@@ -250,37 +250,79 @@ export default function AllTasks() {
             availableUsers = assignableUsers.filter(u => u.email !== task.assignedToEmail);
         }
 
+        // Apply strict "Staff Only" filter as requested
+        availableUsers = availableUsers.filter(u => {
+            const r = (u.role?.name || u.role || '').toLowerCase().replace(/\s+/g, '');
+            return r === 'staff';
+        });
+
         setForwardUsers(availableUsers);
         setShowForwardModal(true);
     };
 
     const submitForwardTask = async () => {
-        if (!selectedForwardUser) {
-            showToast('Please select a user to forward to', 'error');
+        if (selectedForwardUsers.length === 0) {
+            showToast('Please select at least one user to forward to', 'error');
             return;
         }
 
         try {
-            const selectedUserObj = forwardUsers.find(u => u._id === selectedForwardUser || u.email === selectedForwardUser);
-            const newAssignedToEmail = selectedUserObj?.email || selectedForwardUser;
+            // selectedForwardUsers contains User IDs now (to handle duplicate emails correctly in UI)
+            const selectedIds = selectedForwardUsers;
 
+            // Map IDs to User Objects to get emails
+            const selectedUsers = selectedIds.map(id => forwardUsers.find(u => u._id === id)).filter(Boolean);
+
+            if (selectedUsers.length === 0) return;
+
+            // 1. First user gets the ORIGINAL task (Forward)
+            // 2. Subsequent users get a CLONE
+            const [firstUser, ...otherUsers] = selectedUsers;
+            const firstUserEmail = firstUser.email;
+
+            // --- Process First User (Move Original) ---
             const updatedNotes = forwardNote
                 ? (forwardingTask.notes ? `${forwardingTask.notes}\n\n[Forwarded]: ${forwardNote}` : `[Forwarded]: ${forwardNote}`)
                 : forwardingTask.notes;
 
-            const payload = {
-                assignedToEmail: newAssignedToEmail,
+            // Updated existing task
+            await api.put(`/tasks/${forwardingTask._id}`, {
+                assignedToEmail: firstUserEmail,
+                assignedToUserId: firstUser._id,
                 notes: updatedNotes
-            };
+            });
 
-            const response = await api.put(`/tasks/${forwardingTask._id}`, payload);
+            // --- Process Other Users (Create Copies) ---
+            if (otherUsers.length > 0) {
+                // Prepare common payload
+                const basePayload = {
+                    task: forwardingTask.task,
+                    priority: forwardingTask.priority,
+                    dueDate: forwardingTask.dueDate,
+                    notes: updatedNotes,
+                    isSelfTask: false,
+                    taskGivenBy: user.email,
+                    taskGivenByName: user.name
+                };
 
-            if (response.data.success) {
-                showToast('Task forwarded successfully', 'success');
-                setShowForwardModal(false);
-                setForwardingTask(null);
-                fetchAllTasks();
+                // Create copies for other users
+                const createPromises = otherUsers.map(uObj => {
+                    return api.post('/tasks', {
+                        ...basePayload,
+                        assignedToEmail: uObj.email,
+                        assignedToUserId: uObj._id,
+                        durationType: 'custom',
+                        durationValue: 0
+                    });
+                });
+
+                await Promise.all(createPromises);
             }
+
+            showToast(`Task forwarded to ${selectedUsers.length} users`, 'success');
+            setShowForwardModal(false);
+            setForwardingTask(null);
+            fetchAllTasks();
         } catch (error) {
             console.error('Forward task error:', error);
             showToast(error.response?.data?.error || 'Failed to forward task', 'error');
@@ -521,30 +563,42 @@ export default function AllTasks() {
             const allFetchedTasks = response.data.tasks || [];
 
             // Filter tasks into categories client-side to avoid multiple API calls
-            const assignedToMe = allFetchedTasks.filter(task =>
-                task.assignedTo?.email === user?.email &&
-                task.createdBy?.email !== user?.email
-            );
+            // Filter tasks into categories client-side to avoid multiple API calls
+            const assignedToMe = allFetchedTasks.filter(task => {
+                const assignedToId = task.assignedTo?._id || task.assignedTo;
+                const createdById = task.createdBy?._id || task.createdBy;
+                const currentUserId = user?.id || user?._id;
 
-            const iAssigned = allFetchedTasks.filter(task =>
-                task.createdBy?.email === user?.email &&
-                task.assignedTo?.email !== user?.email
-            );
+                return String(assignedToId) === String(currentUserId) && String(createdById) !== String(currentUserId);
+            });
 
-            const selfTasks = allFetchedTasks.filter(task =>
-                task.isSelfTask &&
-                task.createdBy?.email === user?.email &&
-                task.assignedTo?.email === user?.email
-            );
+            const iAssigned = allFetchedTasks.filter(task => {
+                const assignedToId = task.assignedTo?._id || task.assignedTo;
+                const createdById = task.createdBy?._id || task.createdBy;
+                const currentUserId = user?.id || user?._id;
+
+                return String(createdById) === String(currentUserId) && String(assignedToId) !== String(currentUserId);
+            });
+
+            const selfTasks = allFetchedTasks.filter(task => {
+                const assignedToId = task.assignedTo?._id || task.assignedTo;
+                const createdById = task.createdBy?._id || task.createdBy;
+                const currentUserId = user?.id || user?._id;
+
+                return task.isSelfTask && String(createdById) === String(currentUserId) && String(assignedToId) === String(currentUserId);
+            });
 
             // Filter tasks I forwarded
             // Logic: isForwarded is true AND forwardedBy matches my ID (or email)
-            const forwardedByMe = allFetchedTasks.filter(task =>
-                task.isForwarded && (
+            const forwardedByMe = allFetchedTasks.filter(task => {
+                const currentUserId = user?.id || user?._id;
+                const forwardedById = task.forwardedBy?._id || task.forwardedBy;
+
+                return task.isForwarded && (
                     task.forwardedByEmail === user?.email ||
-                    (task.forwardedBy?._id || task.forwardedBy) === user?._id
-                )
-            );
+                    String(forwardedById) === String(currentUserId)
+                );
+            });
 
             setAllTasks({
                 assignedToMe,
@@ -1088,14 +1142,16 @@ export default function AllTasks() {
                         </label>
                         <Select
                             className="w-full"
-                            placeholder="Select staff member"
-                            value={selectedForwardUser}
-                            onChange={setSelectedForwardUser}
+                            mode="multiple"
+                            placeholder="Select staff members"
+                            value={selectedForwardUsers}
+                            onChange={setSelectedForwardUsers}
                             showSearch
                             optionFilterProp="children"
+                            maxTagCount="responsive"
                         >
                             {forwardUsers.map(u => (
-                                <Select.Option key={u._id || u.email} value={u.email}>
+                                <Select.Option key={u._id} value={u._id}>
                                     {u.name} ({u.designation || 'Staff'})
                                 </Select.Option>
                             ))}
