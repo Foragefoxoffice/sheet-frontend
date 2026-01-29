@@ -232,7 +232,7 @@ export default function Login() {
                     </div>
 
                     {/* Footer Links */}
-                    <div className="mt-12 text-center">
+                    <div className="mt-6 md:mt-12 text-center">
                         <p className="text-slate-500 font-bold">
                             Restricted access? <a href="#" className="text-primary-600 hover:text-primary-700 underline decoration-primary-200 underline-offset-4 transition-all hover:decoration-primary-600">Contact IT Support</a>
                         </p>
