@@ -52,7 +52,7 @@ export default function Modal({ isOpen, onClose, title, children, size = 'medium
                     ref={modalRef}
                     className={`
                         relative transform overflow-hidden rounded-3xl bg-white text-left shadow-2xl transition-all 
-                        w-full ${maxWidthClass} max-h-[90vh] flex flex-col animate-scaleIn
+                        w-full ${maxWidthClass} md:max-h-[90vh] max-h-[80vh] flex flex-col animate-scaleIn
                         border border-white/50 ring-1 ring-black/5
                     `}
                     role="dialog"

@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { ListTodo, Search as SearchIcon, Filter, X, Plus } from 'lucide-react';
 import { Select, Input, Button, Modal as AntModal, Form, DatePicker, TimePicker, Checkbox, Pagination } from 'antd';
 import dayjs from 'dayjs';
+import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
 import TaskCard from '../components/common/TaskCard';
 import Modal from '../components/common/Modal';
@@ -11,6 +12,7 @@ import { showToast } from '../utils/helpers';
 import { TASK_STATUS } from '../utils/taskHelpers';
 
 export default function AssignedTasks() {
+    const navigate = useNavigate();
     const { user } = useAuth();
     const [tasks, setTasks] = useState([]);
     const [loading, setLoading] = useState(true);
@@ -326,18 +328,22 @@ export default function AssignedTasks() {
                 <Button
                     type="primary"
                     onClick={() => {
-                        setEditingTask(null);
-                        setCreateFormData({
-                            task: '',
-                            assignedToEmail: '',
-                            priority: 'Medium',
-                            targetDate: '',
-                            targetTime: '',
-                            notes: '',
-                            isSelfTask: false,
-                            taskGivenBy: '',
-                        });
-                        setShowCreateModal(true);
+                        if (window.innerWidth < 768) {
+                            navigate('/create-task');
+                        } else {
+                            setEditingTask(null);
+                            setCreateFormData({
+                                task: '',
+                                assignedToEmail: '',
+                                priority: 'Medium',
+                                targetDate: '',
+                                targetTime: '',
+                                notes: '',
+                                isSelfTask: false,
+                                taskGivenBy: '',
+                            });
+                            setShowCreateModal(true);
+                        }
                     }}
                     icon={<Plus className="w-4 h-4" />}
                     size="large"

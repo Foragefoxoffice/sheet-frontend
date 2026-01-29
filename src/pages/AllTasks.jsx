@@ -1,4 +1,5 @@
 import { useState, useEffect, useMemo } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Select, DatePicker, TimePicker, Input, Checkbox, Button, Form, Pagination, Modal as AntModal, Skeleton } from 'antd';
 import dayjs from 'dayjs';
 import { CheckCircle2, ListTodo, Plus, Search, Filter, Users, Send, Target, Briefcase, LayoutGrid, CornerUpRight } from 'lucide-react';
@@ -136,6 +137,7 @@ function AllTasksSkeleton({
 }
 
 export default function AllTasks() {
+    const navigate = useNavigate();
     const { user } = useAuth();
     const userRoleName = (user?.role?.name || user?.role || '').toLowerCase().replace(/\s+/g, '');
     const [editingTask, setEditingTask] = useState(null);
@@ -173,7 +175,7 @@ export default function AllTasks() {
     const [showForwardModal, setShowForwardModal] = useState(false);
     const [forwardingTask, setForwardingTask] = useState(null);
     const [forwardUsers, setForwardUsers] = useState([]);
-    const [selectedForwardUsers, setSelectedForwardUsers] = useState([]);
+    const [selectedForwardUser, setSelectedForwardUser] = useState(null);
     const [forwardNote, setForwardNote] = useState('');
 
     const handleDeleteTask = (task) => {
@@ -200,7 +202,7 @@ export default function AllTasks() {
 
     const handleForwardTask = (task) => {
         setForwardingTask(task);
-        setSelectedForwardUsers([]);
+        setSelectedForwardUser(null);
         setForwardNote('');
 
         const currentUserRole = (user?.role?.name || user?.role || '').toLowerCase().replace(/\s+/g, '');
@@ -261,26 +263,20 @@ export default function AllTasks() {
     };
 
     const submitForwardTask = async () => {
-        if (selectedForwardUsers.length === 0) {
-            showToast('Please select at least one user to forward to', 'error');
+        if (!selectedForwardUser) {
+            showToast('Please select a user to forward to', 'error');
             return;
         }
 
         try {
-            // selectedForwardUsers contains User IDs now (to handle duplicate emails correctly in UI)
-            const selectedIds = selectedForwardUsers;
+            // Find the selected user object
+            const selectedUser = forwardUsers.find(u => u._id === selectedForwardUser);
 
-            // Map IDs to User Objects to get emails
-            const selectedUsers = selectedIds.map(id => forwardUsers.find(u => u._id === id)).filter(Boolean);
+            if (!selectedUser) return;
 
-            if (selectedUsers.length === 0) return;
+            const firstUserEmail = selectedUser.email;
 
-            // 1. First user gets the ORIGINAL task (Forward)
-            // 2. Subsequent users get a CLONE
-            const [firstUser, ...otherUsers] = selectedUsers;
-            const firstUserEmail = firstUser.email;
-
-            // --- Process First User (Move Original) ---
+            // --- Process Move Original ---
             const updatedNotes = forwardNote
                 ? (forwardingTask.notes ? `${forwardingTask.notes}\n\n[Forwarded]: ${forwardNote}` : `[Forwarded]: ${forwardNote}`)
                 : forwardingTask.notes;
@@ -288,38 +284,11 @@ export default function AllTasks() {
             // Updated existing task
             await api.put(`/tasks/${forwardingTask._id}`, {
                 assignedToEmail: firstUserEmail,
-                assignedToUserId: firstUser._id,
+                assignedToUserId: selectedUser._id,
                 notes: updatedNotes
             });
 
-            // --- Process Other Users (Create Copies) ---
-            if (otherUsers.length > 0) {
-                // Prepare common payload
-                const basePayload = {
-                    task: forwardingTask.task,
-                    priority: forwardingTask.priority,
-                    dueDate: forwardingTask.dueDate,
-                    notes: updatedNotes,
-                    isSelfTask: false,
-                    taskGivenBy: user.email,
-                    taskGivenByName: user.name
-                };
-
-                // Create copies for other users
-                const createPromises = otherUsers.map(uObj => {
-                    return api.post('/tasks', {
-                        ...basePayload,
-                        assignedToEmail: uObj.email,
-                        assignedToUserId: uObj._id,
-                        durationType: 'custom',
-                        durationValue: 0
-                    });
-                });
-
-                await Promise.all(createPromises);
-            }
-
-            showToast(`Task forwarded to ${selectedUsers.length} users`, 'success');
+            showToast(`Task forwarded to ${selectedUser.name}`, 'success');
             setShowForwardModal(false);
             setForwardingTask(null);
             fetchAllTasks();
@@ -1105,7 +1074,13 @@ export default function AllTasks() {
                     {canCreateTask && (
                         <Button
                             type="primary"
-                            onClick={() => setShowCreateModal(true)}
+                            onClick={() => {
+                                if (window.innerWidth < 768) {
+                                    navigate('/create-task');
+                                } else {
+                                    setShowCreateModal(true);
+                                }
+                            }}
                             className="bg-primary hover:bg-primary-600 flex items-center justify-center gap-2 h-11 px-6 w-full md:w-auto rounded-xl font-bold shadow-lg shadow-primary/20 hover:shadow-primary/30 transition-all hover:-translate-y-0.5"
                             icon={<Plus className="w-5 h-5" />}
                         >
@@ -1140,13 +1115,11 @@ export default function AllTasks() {
                         </label>
                         <Select
                             className="w-full"
-                            mode="multiple"
-                            placeholder="Select staff members"
-                            value={selectedForwardUsers}
-                            onChange={setSelectedForwardUsers}
+                            placeholder="Select a staff member"
+                            value={selectedForwardUser}
+                            onChange={setSelectedForwardUser}
                             showSearch
                             optionFilterProp="children"
-                            maxTagCount="responsive"
                         >
                             {forwardUsers.map(u => (
                                 <Select.Option key={u._id} value={u._id}>
@@ -1360,7 +1333,7 @@ export default function AllTasks() {
                     </div>
 
                     {/* Mobile Filter Button */}
-                    <div className="md:hidden mt-4">
+                    {/* <div className="md:hidden mt-4">
                         <Button
                             type="primary"
                             onClick={() => setShowMobileFilters(true)}
@@ -1369,7 +1342,7 @@ export default function AllTasks() {
                         >
                             Filters & Search
                         </Button>
-                    </div>
+                    </div> */}
 
 
                     {/* Desktop Filters - Hidden on Mobile */}
