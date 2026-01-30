@@ -6,6 +6,7 @@ import { useNavigate } from 'react-router-dom';
 import dayjs from 'dayjs';
 import api from '../utils/api';
 import { showToast } from '../utils/helpers';
+import ResponsiveTimePicker from '../components/common/ResponsiveTimePicker';
 
 export default function CreateTask() {
     const { user } = useAuth();
@@ -265,7 +266,7 @@ export default function CreateTask() {
                             label={<span className="font-medium text-gray-700">Target Time</span>}
                             rules={[{ required: true, message: 'Please select a time' }]}
                         >
-                            <TimePicker
+                            <ResponsiveTimePicker
                                 className="w-full"
                                 size="large"
                                 format="HH:mm"

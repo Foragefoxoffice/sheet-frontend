@@ -102,7 +102,7 @@ export default function Sidebar() {
 
     return (
         <aside
-            className={`bg-white border-r border-gray-100 flex flex-col fixed h-screen left-0 top-0 z-50 transition-all duration-300 ease-in-out shadow-2xl shadow-gray-200/50 ${isSidebarExpanded ? 'w-72' : 'w-[88px]'
+            className={`bg-white border-r border-gray-100 flex flex-col fixed h-screen left-0 top-0 z-50 transition-all duration-300 ease-in-out shadow-2xl shadow-gray-200/50 ${isSidebarExpanded ? 'w-62' : 'w-[88px]'
                 }`}
         >
             {/* Brand Section */}

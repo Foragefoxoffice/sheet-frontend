@@ -86,7 +86,7 @@ export default function TaskCard({ task, onStatusChange, onView, onEdit, onDelet
                     'bg-blue-400'
                 }`} />
 
-            <div className="p-5 pl-7 flex-1 flex flex-col content-between">
+            <div className="p-5 pl-5 flex-1 flex flex-col content-between">
                 {/* Header */}
                 <div className="flex items-start justify-between mb-3">
                     <div className="flex flex-col gap-1">

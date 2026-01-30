@@ -136,7 +136,6 @@ export default function Users() {
         return () => window.removeEventListener('scroll', handleScroll);
     }, [hasMore, loading, loadingMore]);
 
-    // Fetch more when page changes
     useEffect(() => {
         if (page > 1) {
             fetchUsers(page);
@@ -144,8 +143,6 @@ export default function Users() {
     }, [page]);
 
     useEffect(() => {
-        // Fetch roles after users are loaded (only on initial load or if improved logic needed)
-        // Keeping this simple to avoid refreshing roles constantly
         if (users.length > 0 && roles.length === 0) {
             fetchRoles();
         }
@@ -154,7 +151,6 @@ export default function Users() {
     const fetchUsers = async (pageNum) => {
         try {
             if (pageNum === 1) {
-                // Initial load
             } else {
                 setLoadingMore(true);
             }
@@ -166,7 +162,6 @@ export default function Users() {
                 setUsers(newUsers);
             } else {
                 setUsers(prev => {
-                    // Filter out duplicates just in case
                     const existingIds = new Set(prev.map(u => u._id));
                     const uniqueNewUsers = newUsers.filter(u => !existingIds.has(u._id));
                     return [...prev, ...uniqueNewUsers];
@@ -206,7 +201,6 @@ export default function Users() {
                 fetchedRoles = response.data.roles || [];
             }
 
-            // Also include current user's own role for display purposes if not already in list
             const currentUserRole = user?.role;
             if (currentUserRole && typeof currentUserRole === 'object') {
                 const hasCurrentRole = fetchedRoles.some(r => r._id === currentUserRole._id);
@@ -214,9 +208,6 @@ export default function Users() {
                     fetchedRoles.push(currentUserRole);
                 }
             }
-
-            // ENHANCEMENT: Merge roles found in the users list to ensure we have tabs for all visible user roles
-            // This is critical for roles like Department Head who can see users but might not manage all their roles
             const userRoles = users.map(u => u.role).filter(Boolean);
             const seenRoleIds = new Set(fetchedRoles.map(r => r._id));
 

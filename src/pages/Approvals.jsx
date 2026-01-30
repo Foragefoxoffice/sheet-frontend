@@ -157,7 +157,6 @@ export default function Approvals() {
         overdue: tasks.filter(t => {
             if (!t.dueDate) return false;
             const dueDate = new Date(t.dueDate);
-            // If task is waiting for approval, it's effectively completed by the assignee, so compare createdAt/updatedAt
             const completedDate = new Date(t.updatedAt);
             return completedDate > dueDate;
         }).length,

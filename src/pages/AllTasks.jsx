@@ -11,6 +11,7 @@ import StatCard from '../components/common/StatCard';
 import api from '../utils/api';
 import { showToast } from '../utils/helpers';
 import { TASK_STATUS } from '../utils/taskHelpers';
+import ResponsiveTimePicker from '../components/common/ResponsiveTimePicker';
 
 function TaskGridSkeleton({ count = 12 }) {
     return (
@@ -205,10 +206,6 @@ export default function AllTasks() {
         setSelectedForwardUser(null);
         setForwardNote('');
 
-        const currentUserRole = (user?.role?.name || user?.role || '').toLowerCase().replace(/\s+/g, '');
-        let availableUsers = [];
-
-        // Helper to get ID string safely
         const getDeptId = (dept) => {
             if (!dept) return '';
             if (typeof dept === 'object' && dept._id) return dept._id.toString();
@@ -216,47 +213,18 @@ export default function AllTasks() {
         };
 
         const myDeptId = getDeptId(user.department);
+        const sourceUsers = assignableUsers.length > 0 ? assignableUsers : users;
 
-        // Logic for Department Head/Manager
-        if (['departmenthead', 'manager'].includes(currentUserRole)) {
-            // "Give same assign to field option for forward task without other department head"
-            // Start with Assignable Users (which includes: Own Staff + Other Dept Heads + PMs + Standalone)
-            const sourceUsers = assignableUsers.length > 0 ? assignableUsers : users;
-
-            availableUsers = sourceUsers.filter(u => {
-                const uDeptId = getDeptId(u.department);
-                const uRole = (u.role?.name || u.role || '').toLowerCase().replace(/\s+/g, '');
-                const isSelf = u.email === user.email;
-
-                // Always exclude self
-                if (isSelf) return false;
-
-                // Always exclude the person currently assigned (forwarding away from them)
-                if (u.email === task.assignedToEmail) return false;
-
-                // CRITICAL RULE: "without other department head"
-                // If user is a Department Head role (or Manager)
-                // Filter out if they are a Department Head/Manager in a DIFFERENT department
-                if (['departmenthead', 'manager'].includes(uRole)) {
-                    if (uDeptId !== myDeptId && uDeptId !== '') {
-                        return false;
-                    }
-                }
-
-                // If they passed the above exclusion, they are valid (assuming they were in assignableUsers)
-                return true;
-            });
-        }
-        // Logic for other roles (Director, GM, etc) -> Standard Assignable Logic
-        else {
-            availableUsers = assignableUsers.filter(u => u.email !== task.assignedToEmail);
-        }
-
-        // Apply strict "Staff Only" filter as requested
-        availableUsers = availableUsers.filter(u => {
-            const r = (u.role?.name || u.role || '').toLowerCase().replace(/\s+/g, '');
-            return r === 'staff';
+        // Strictly filter to show ONLY users from the same department
+        let availableUsers = sourceUsers.filter(u => {
+            const uDeptId = getDeptId(u.department);
+            return uDeptId === myDeptId;
         });
+
+        // Fallback for users without a department (like Directors) to avoid empty list
+        if (!myDeptId) {
+            availableUsers = [...sourceUsers];
+        }
 
         setForwardUsers(availableUsers);
         setShowForwardModal(true);
@@ -1115,7 +1083,7 @@ export default function AllTasks() {
                         </label>
                         <Select
                             className="w-full"
-                            placeholder="Select a staff member"
+                            placeholder="Select a user"
                             value={selectedForwardUser}
                             onChange={setSelectedForwardUser}
                             showSearch
@@ -1613,7 +1581,7 @@ export default function AllTasks() {
                 </div>
             ) : (
                 <>
-                    <div className="grid grid-cols-1 pt-0 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                    <div className="grid grid-cols-1 pt-0 md:grid-cols-2 lg:grid-cols-3 gap-4">
                         {sortedTasks
                             .slice((currentPage - 1) * pageSize, currentPage * pageSize)
                             .map(task => {
@@ -1956,8 +1924,8 @@ export default function AllTasks() {
                             label={<span className="font-medium text-gray-700">Target Time </span>}
                             required
                         >
-                            <TimePicker
-                                value={createFormData.targetTime ? dayjs(`2000-01-01 ${createFormData.targetTime}`) : null}
+                            <ResponsiveTimePicker
+                                value={createFormData.targetTime}
                                 onChange={(time, timeString) => setCreateFormData({ ...createFormData, targetTime: timeString })}
                                 className="w-full"
                                 size="large"

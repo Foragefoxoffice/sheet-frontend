@@ -1,10 +1,10 @@
 import { useState, useEffect } from 'react';
 import {
-    Download, Calendar, Users, FileText,
+    Calendar, Users, FileText,
     BarChart3, PieChart, LayoutGrid, CheckCircle2,
     Clock, AlertCircle, Briefcase, ArrowDownToLine
 } from 'lucide-react';
-import { DatePicker, Button, Table, Card, Skeleton } from 'antd';
+import { DatePicker, Table, Skeleton } from 'antd';
 import { PieChart as RechartsPie, Pie, Cell, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 import dayjs from 'dayjs';
 import { useAuth } from '../hooks/useAuth';

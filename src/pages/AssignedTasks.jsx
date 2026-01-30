@@ -10,6 +10,7 @@ import DeleteConfirmationModal from '../components/common/DeleteConfirmationModa
 import api from '../utils/api';
 import { showToast } from '../utils/helpers';
 import { TASK_STATUS } from '../utils/taskHelpers';
+import ResponsiveTimePicker from '../components/common/ResponsiveTimePicker';
 
 export default function AssignedTasks() {
     const navigate = useNavigate();
@@ -676,8 +677,8 @@ export default function AssignedTasks() {
                             label={<span className="font-medium text-gray-700">Target Time </span>}
                             required
                         >
-                            <TimePicker
-                                value={createFormData.targetTime ? dayjs(`2000-01-01 ${createFormData.targetTime}`) : null}
+                            <ResponsiveTimePicker
+                                value={createFormData.targetTime}
                                 onChange={(time, timeString) => setCreateFormData({ ...createFormData, targetTime: timeString })}
                                 className="w-full"
                                 size="large"
