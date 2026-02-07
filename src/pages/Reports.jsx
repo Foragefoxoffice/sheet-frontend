@@ -277,7 +277,14 @@ export default function Reports() {
 
     // User performance data
     const userPerformance = reportData.users.map(u => {
-        const userTasks = reportData.tasks.filter(t => t.assignedToEmail === u.email);
+        // Filter tasks that are EITHER assigned to the user OR created by the user
+        // This matches the "Total Tasks" logic used in AllTasks.jsx
+        const userTasks = reportData.tasks.filter(t => {
+            const assignedToId = t.assignedTo?._id || t.assignedTo;
+            const createdById = t.createdBy?._id || t.createdBy;
+            const userId = u._id;
+            return String(assignedToId) === String(userId) || String(createdById) === String(userId);
+        });
         const completed = userTasks.filter(t => t.status === 'Completed').length;
         const total = userTasks.length;
 

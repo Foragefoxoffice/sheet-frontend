@@ -230,10 +230,10 @@ export default function TaskCard({ task, onStatusChange, onView, onEdit, onDelet
                                 e.stopPropagation();
                                 setShowComments(true);
                             }}
-                            className="flex cursor-pointer items-center gap-2 px-2 py-1 bg-primary-50 hover:bg-primary-100 text-primary-600 rounded-lg transition-colors border border-primary-200"
+                            className="flex cursor-pointer items-center gap-2 px-1 py-1 bg-primary-50 hover:bg-primary-100 text-primary-600 rounded-lg transition-colors border border-primary-200"
                         >
                             <MessageSquare className="w-4 h-4" />
-                            <span className="text-sm font-semibold">View Comments</span>
+                            <span className="text-[12px] font-semibold">View Comments</span>
                             <span className="px-2 py-0.5 bg-primary-600 text-white text-xs rounded-full">
                                 {localComments.length}
                             </span>
