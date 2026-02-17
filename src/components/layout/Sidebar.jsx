@@ -183,32 +183,36 @@ export default function Sidebar() {
             {/* User Profile Footer */}
             <div className={`p-4 mt-auto border-t border-gray-100 transition-all duration-300 ${isSidebarExpanded ? 'bg-gray-50/50' : ''}`}>
                 <div className={`flex items-center ${isSidebarExpanded ? 'gap-3 bg-white p-3 rounded-xl border border-gray-100 shadow-sm' : 'flex-col gap-4'}`}>
-                    {/* User Avatar */}
-                    <div className="w-10 h-10 rounded-full bg-[#253094] flex items-center justify-center text-white font-bold text-sm shrink-0 shadow-md ring-2 ring-white">
-                        {user?.name?.charAt(0).toUpperCase()}
-                    </div>
-
-                    {isSidebarExpanded && (
-                        <div className="flex-1 min-w-0 overflow-hidden">
-                            <h4 style={{ marginBottom: 0 }} className="text-sm font-semibold text-gray-900 truncate">
-                                {user?.name}
-                            </h4>
-                            <p style={{ marginBottom: 0 }} className="text-xs text-gray-500 truncate capitalize">
-                                {userRole || 'Team Member'}
-                            </p>
+                    {/* User Avatar - Link to Profile */}
+                    <Link to="/profile" className="flex items-center gap-3 flex-1 min-w-0">
+                        <div className="w-10 h-10 rounded-full bg-[#253094] flex items-center justify-center text-white font-bold text-sm shrink-0 shadow-md ring-2 ring-white">
+                            {user?.name?.charAt(0).toUpperCase()}
                         </div>
-                    )}
 
-                    {/* Logout/Settings Controls */}
-                    <Tooltip title="Logout" placement="right">
-                        <button
-                            onClick={logout}
-                            className={`flex items-center justify-center text-gray-400 hover:text-danger hover:bg-red-50 rounded-lg transition-colors p-2 ${!isSidebarExpanded && 'mt-2 hover:bg-transparent hover:text-danger'
-                                }`}
-                        >
-                            <LogOut color='red' className="w-5 h-5 cursor-pointer" />
-                        </button>
-                    </Tooltip>
+                        {isSidebarExpanded && (
+                            <div className="flex-1 min-w-0 overflow-hidden">
+                                <h4 style={{ marginBottom: 0 }} className="text-sm font-semibold text-gray-900 truncate">
+                                    {user?.name}
+                                </h4>
+                                <p style={{ marginBottom: 0 }} className="text-xs text-gray-500 truncate capitalize">
+                                    {userRole || 'Team Member'}
+                                </p>
+                            </div>
+                        )}
+                    </Link>
+
+                    {/* Controls */}
+                    <div className={`flex ${isSidebarExpanded ? 'flex-col gap-1' : 'flex-col gap-4'}`}>
+                        <Tooltip title="Logout" placement="right">
+                            <button
+                                onClick={logout}
+                                className={`flex items-center justify-center text-gray-400 hover:text-danger hover:bg-red-50 rounded-lg transition-colors p-2 ${!isSidebarExpanded && 'mt-2 hover:bg-transparent hover:text-danger'
+                                    }`}
+                            >
+                                <LogOut color='red' className="w-5 h-5 cursor-pointer" />
+                            </button>
+                        </Tooltip>
+                    </div>
                 </div>
             </div>
         </aside>

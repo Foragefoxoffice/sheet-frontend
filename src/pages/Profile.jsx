@@ -1,12 +1,16 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Button } from 'antd';
-import { LogOut } from 'lucide-react';
+import { LogOut, Lock } from 'lucide-react';
 import { useAuth } from '../hooks/useAuth';
+import Modal from '../components/common/Modal';
+import ChangePassword from '../components/common/ChangePassword';
 
 export default function Profile() {
     const { user, logout } = useAuth();
     const navigate = useNavigate();
+
+    const [showChangePasswordModal, setShowChangePasswordModal] = useState(false);
 
     const handleLogout = () => {
         logout();
@@ -60,16 +64,40 @@ export default function Profile() {
                 </div>
             </div>
 
-            <Button
-                type="primary"
-                danger
-                size="large"
-                onClick={handleLogout}
-                className="w-full md:w-auto flex items-center justify-center gap-2"
-                icon={<LogOut className="w-5 h-5" />}
+            <div className="flex flex-col md:flex-row gap-4 mt-6">
+                <Button
+                    type="primary"
+                    size="large"
+                    onClick={() => setShowChangePasswordModal(true)}
+                    className="flex-1 md:flex-none flex items-center justify-center gap-2 bg-[#253094]"
+                    icon={<Lock className="w-5 h-5" />}
+                >
+                    Change Password
+                </Button>
+
+                <Button
+                    type="primary"
+                    danger
+                    size="large"
+                    onClick={handleLogout}
+                    className="flex-1 md:flex-none flex items-center justify-center gap-2"
+                    icon={<LogOut className="w-5 h-5" />}
+                >
+                    Logout
+                </Button>
+            </div>
+
+            <Modal
+                isOpen={showChangePasswordModal}
+                onClose={() => setShowChangePasswordModal(false)}
+                title="Change Your Password"
             >
-                Logout
-            </Button>
+                <ChangePassword
+                    user={user}
+                    onSuccess={() => setShowChangePasswordModal(false)}
+                    onCancel={() => setShowChangePasswordModal(false)}
+                />
+            </Modal>
         </div>
     );
 }

@@ -1,4 +1,4 @@
-import { Users as UsersIcon, UserPlus, Mail, Phone, Search as SearchIcon, Edit, Trash2, Building2, Shield } from 'lucide-react';
+import { Users as UsersIcon, UserPlus, Mail, Phone, Search as SearchIcon, Edit, Trash2, Building2, Shield, Lock } from 'lucide-react';
 import { Input, Select, Button, Tabs, Skeleton } from 'antd';
 import { useState, useEffect } from 'react';
 import { useAuth } from '../hooks/useAuth';
@@ -8,6 +8,7 @@ import CreateUserForm from '../components/features/users/CreateUserForm';
 import EditUserForm from '../components/features/users/EditUserForm';
 import StatCard from '../components/common/StatCard';
 import api from '../utils/api';
+import ChangePassword from '../components/common/ChangePassword';
 
 function UsersSkeleton() {
     return (
@@ -104,8 +105,8 @@ export default function Users() {
     const [showCreateModal, setShowCreateModal] = useState(false);
     const [showEditModal, setShowEditModal] = useState(false);
 
-    const [selectedUser, setSelectedUser] = useState(null);
     const [showDeleteModal, setShowDeleteModal] = useState(false);
+    const [showChangePasswordModal, setShowChangePasswordModal] = useState(false);
     const [userToDelete, setUserToDelete] = useState(null);
 
     useEffect(() => {
@@ -256,8 +257,14 @@ export default function Users() {
     const handleEditSuccess = (updatedUser) => {
         setUsers(prev => prev.map(u => u._id === updatedUser._id ? updatedUser : u));
         setShowEditModal(false);
+        setShowChangePasswordModal(false);
         setSelectedUser(null);
         fetchUsers(); // Refresh the list
+    };
+
+    const handleChangePassword = (userToUpdate) => {
+        setSelectedUser(userToUpdate);
+        setShowChangePasswordModal(true);
     };
 
     const handleDelete = (userId) => {
@@ -425,7 +432,7 @@ export default function Users() {
                                 className={`
                                     relative px-5 py-2.5 cursor-pointer rounded-xl text-sm font-semibold transition-all duration-300 whitespace-nowrap
                                     ${activeTab === tab.key
-                                        ? 'bg-[#253094] text-white translate-y-[-1px]'
+                                        ? 'bg-[#253094] text-white -translate-y-px'
                                         : 'bg-gray-50 text-gray-600 hover:bg-gray-100 hover:text-[#253094]'
                                     }
                                 `}
@@ -494,7 +501,7 @@ export default function Users() {
                     {filteredUsers.map((member) => (
                         <div key={member._id} className="group bg-white rounded-2xl p-6 shadow-sm border border-gray-100 hover:shadow-xl hover:border-primary-100 transition-all duration-300 relative overflow-hidden">
                             {/* Decorative Background */}
-                            <div className="absolute top-0 right-0 w-32 h-32 bg-gradient-to-br from-primary-50 to-transparent opacity-0 group-hover:opacity-100 rounded-bl-full transition-all duration-500 -mr-8 -mt-8 pointer-events-none"></div>
+                            <div className="absolute top-0 right-0 w-32 h-32 bg-linear-to-br from-primary-50 to-transparent opacity-0 group-hover:opacity-100 rounded-bl-full transition-all duration-500 -mr-8 -mt-8 pointer-events-none"></div>
 
                             <div className="relative z-10">
                                 <div className="flex items-start justify-between mb-3">
@@ -549,12 +556,21 @@ export default function Users() {
                                         </Button>
                                     )}
                                     {canDeleteUser && (
-                                        <Button
-                                            danger
-                                            onClick={() => handleDelete(member._id)}
-                                            className="h-10 px-4 rounded-xl hover:bg-red-50"
-                                            icon={<Trash2 className="w-4 h-4" />}
-                                        />
+                                        <>
+                                            <Button
+                                                onClick={() => handleChangePassword(member)}
+                                                className="h-10 px-4 rounded-xl border-gray-200 text-gray-400 hover:text-[#253094] hover:border-[#253094] hover:bg-blue-50"
+                                                icon={<Lock className="w-4 h-4" />}
+                                                title="Change Password"
+                                            />
+                                            <Button
+                                                danger
+                                                onClick={() => handleDelete(member._id)}
+                                                className="h-10 px-4 rounded-xl hover:bg-red-50"
+                                                icon={<Trash2 className="w-4 h-4" />}
+                                                title="Delete User"
+                                            />
+                                        </>
                                     )}
                                 </div>
                             </div>
@@ -602,6 +618,28 @@ export default function Users() {
                         setSelectedUser(null);
                     }}
                     departments={departments}
+                />
+            </Modal>
+
+            {/* Change Password Modal */}
+            <Modal
+                isOpen={showChangePasswordModal}
+                onClose={() => {
+                    setShowChangePasswordModal(false);
+                    setSelectedUser(null);
+                }}
+                title="Change User Password"
+            >
+                <ChangePassword
+                    user={selectedUser}
+                    onSuccess={() => {
+                        setShowChangePasswordModal(false);
+                        setSelectedUser(null);
+                    }}
+                    onCancel={() => {
+                        setShowChangePasswordModal(false);
+                        setSelectedUser(null);
+                    }}
                 />
             </Modal>
 
