@@ -151,26 +151,14 @@ export default function EditUserForm({ user: userToEdit, onSuccess, onCancel, de
                     { len: 10, message: 'WhatsApp number must be 10 digits' },
                     { pattern: /^\d+$/, message: 'Must be digits only' }
                 ]}
+                normalize={(value) => value ? value.replace(/\D/g, '').substring(0, 10) : ''}
             >
-                <Space.Compact style={{ width: '100%' }}>
-                    <Input
-                        style={{ width: '60px' }}
-                        value="+91"
-                        disabled
-                        className="text-center"
-                        size="large"
-                    />
-                    <Input
-                        placeholder="98765 43210"
-                        maxLength={10}
-                        size="large"
-                        value={form.getFieldValue('whatsapp')}
-                        onChange={(e) => {
-                            const value = e.target.value.replace(/\D/g, '').substring(0, 10);
-                            form.setFieldsValue({ whatsapp: value });
-                        }}
-                    />
-                </Space.Compact>
+                <Input
+                    addonBefore="+91"
+                    placeholder="98765 43210"
+                    maxLength={10}
+                    size="large"
+                />
             </Form.Item>
 
             <Form.Item

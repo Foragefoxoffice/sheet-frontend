@@ -2,6 +2,8 @@ import { useState, useEffect } from 'react';
 import { CheckCircle2, XCircle, FileCheck, ShieldAlert, Search, Clock, User, Calendar, AlertCircle } from 'lucide-react';
 import { Input, Button, Skeleton } from 'antd';
 import { useAuth } from '../hooks/useAuth';
+import { useSocket } from '../context/SocketContext';
+
 import Modal from '../components/common/Modal';
 import StatCard from '../components/common/StatCard';
 import api from '../utils/api';
@@ -85,6 +87,8 @@ export default function Approvals() {
     const canViewApprovals = user?.permissions?.viewApprovals || allowedRolesForApprovals.includes(userRole);
     const canApproveReject = user?.permissions?.approveRejectTasks || allowedRolesForApprovals.includes(userRole);
 
+    const socket = useSocket();
+
     useEffect(() => {
         if (canViewApprovals) {
             fetchPendingApprovals();
@@ -92,6 +96,21 @@ export default function Approvals() {
             setLoading(false);
         }
     }, [canViewApprovals]);
+
+    useEffect(() => {
+        if (socket) {
+            socket.on('task_list_update', () => {
+                if (canViewApprovals) {
+                    fetchPendingApprovals();
+                }
+            });
+
+            return () => {
+                socket.off('task_list_update');
+            };
+        }
+    }, [socket, canViewApprovals]);
+
 
     const fetchPendingApprovals = async () => {
         try {

@@ -9,6 +9,7 @@ import EditUserForm from '../components/features/users/EditUserForm';
 import StatCard from '../components/common/StatCard';
 import api from '../utils/api';
 import ChangePassword from '../components/common/ChangePassword';
+import { showToast } from '../utils/helpers';
 
 function UsersSkeleton() {
     return (
@@ -109,6 +110,7 @@ export default function Users() {
     const [showChangePasswordModal, setShowChangePasswordModal] = useState(false);
     const [selectedUser, setSelectedUser] = useState(null);
     const [userToDelete, setUserToDelete] = useState(null);
+    const [isDeleting, setIsDeleting] = useState(false);
 
     useEffect(() => {
         const loadData = async () => {
@@ -245,8 +247,8 @@ export default function Users() {
         }
     };
 
-    const handleCreateSuccess = (newUser) => {
-        setUsers(prev => [...prev, newUser]);
+    const handleCreateSuccess = () => {
+        fetchUsers(1); // Refresh full list from API to ensure all data (IDs, roles, depts) is correct
         setShowCreateModal(false);
     };
 
@@ -276,14 +278,19 @@ export default function Users() {
 
     const confirmDelete = async () => {
         if (!userToDelete) return;
-
+        setIsDeleting(true);
         try {
             await api.delete(`/users/${userToDelete._id}`);
+            showToast(`User ${userToDelete.name} removed successfully`, 'success');
             setUsers(prev => prev.filter(u => u._id !== userToDelete._id));
             setShowDeleteModal(false);
             setUserToDelete(null);
         } catch (error) {
             console.error('Failed to delete user:', error);
+            const errorMessage = error.response?.data?.error || 'Failed to remove user';
+            showToast(errorMessage, 'error');
+        } finally {
+            setIsDeleting(false);
         }
     };
 
@@ -655,6 +662,7 @@ export default function Users() {
                 title="Delete User"
                 message="Are you sure you want to delete this user? This action cannot be undone."
                 itemName={userToDelete?.name}
+                isLoading={isDeleting}
             />
         </div>
     );

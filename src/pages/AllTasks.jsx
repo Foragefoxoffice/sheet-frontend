@@ -4,6 +4,8 @@ import { Select, DatePicker, TimePicker, Input, Checkbox, Button, Form, Paginati
 import dayjs from 'dayjs';
 import { CheckCircle2, ListTodo, Plus, Search, Filter, Users, Send, Target, Briefcase, LayoutGrid, CornerUpRight } from 'lucide-react';
 import { useAuth } from '../hooks/useAuth';
+import { useSocket } from '../context/SocketContext';
+
 import TaskCard from '../components/common/TaskCard';
 import Modal from '../components/common/Modal';
 import DeleteConfirmationModal from '../components/common/DeleteConfirmationModal';
@@ -481,12 +483,27 @@ export default function AllTasks() {
         }
     }, [filteredUserOptions, userFilter]);
 
+    const socket = useSocket();
+
     useEffect(() => {
         fetchAllTasks();
         fetchUsers();
         fetchAllUsersForGivenBy();
         fetchDepartments();
     }, []);
+
+    useEffect(() => {
+        if (socket) {
+            socket.on('task_list_update', () => {
+                fetchAllTasks();
+            });
+
+            return () => {
+                socket.off('task_list_update');
+            };
+        }
+    }, [socket]);
+
 
     const fetchAllTasks = async () => {
         try {

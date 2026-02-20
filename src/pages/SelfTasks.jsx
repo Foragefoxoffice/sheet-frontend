@@ -4,6 +4,7 @@ import { Select, Input, Button, Modal as AntModal, Form, DatePicker, TimePicker,
 import dayjs from 'dayjs';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
+import { useSocket } from '../context/SocketContext';
 import TaskCard from '../components/common/TaskCard';
 import Modal from '../components/common/Modal';
 import DeleteConfirmationModal from '../components/common/DeleteConfirmationModal';
@@ -43,9 +44,24 @@ export default function SelfTasks() {
         taskGivenBy: '',
     });
 
+    const socket = useSocket();
+
     useEffect(() => {
         fetchTasks();
     }, []);
+
+    useEffect(() => {
+        if (socket) {
+            socket.on('task_list_update', () => {
+                fetchTasks();
+            });
+
+            return () => {
+                socket.off('task_list_update');
+            };
+        }
+    }, [socket]);
+
 
     const fetchTasks = async () => {
         try {

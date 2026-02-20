@@ -9,7 +9,8 @@ export default function DeleteConfirmationModal({
     message = "Are you sure you want to remove this item?",
     itemName = "",
     confirmText = "Remove",
-    cancelText = "Cancel"
+    cancelText = "Cancel",
+    isLoading = false
 }) {
     const modalRef = useRef(null);
 
@@ -71,15 +72,22 @@ export default function DeleteConfirmationModal({
                     <div className="flex gap-3">
                         <button
                             onClick={onClose}
-                            className="flex-1 py-2.5 px-4 bg-gray-50 hover:bg-gray-100 text-gray-700 font-semibold rounded-xl transition-colors border border-gray-100"
+                            disabled={isLoading}
+                            className="flex-1 cursor-pointer py-2.5 px-4 bg-gray-50 hover:bg-gray-100 text-gray-700 font-semibold rounded-xl transition-colors border border-gray-100 disabled:opacity-50 disabled:cursor-not-allowed"
                         >
                             {cancelText}
                         </button>
                         <button
                             onClick={onConfirm}
-                            className="flex-1 py-2.5 px-4 bg-[#FF0000] hover:bg-red-700 text-white font-semibold rounded-xl shadow-lg shadow-red-500/30 transition-all hover:scale-[1.02]"
+                            disabled={isLoading}
+                            className="flex-1 cursor-pointer py-2.5 px-4 bg-[#FF0000] hover:bg-red-700 text-white font-semibold rounded-xl shadow-lg shadow-red-500/30 transition-all hover:scale-[1.02] disabled:opacity-70 disabled:cursor-not-allowed flex items-center justify-center gap-2"
                         >
-                            {confirmText}
+                            {isLoading ? (
+                                <>
+                                    <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                                    <span>Removing...</span>
+                                </>
+                            ) : confirmText}
                         </button>
                     </div>
 
