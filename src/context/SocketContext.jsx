@@ -24,8 +24,14 @@ export const SocketProvider = ({ children }) => {
             });
 
             newSocket.on('connect', () => {
-                console.log('Connected to WebSocket server');
-                newSocket.emit('join', user._id);
+                console.log('Connected to WebSocket server', newSocket.id);
+                const userId = user._id || user.id;
+                if (userId) {
+                    console.log('Joining room for userId:', userId);
+                    newSocket.emit('join', userId);
+                } else {
+                    console.error('UserId not found for socket join', user);
+                }
             });
 
             newSocket.on('task_created', (task) => {

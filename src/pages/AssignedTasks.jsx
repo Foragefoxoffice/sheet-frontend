@@ -35,6 +35,8 @@ export default function AssignedTasks() {
     const [pageSize, setPageSize] = useState(12);
     const [showDeleteModal, setShowDeleteModal] = useState(false);
     const [taskToDelete, setTaskToDelete] = useState(null);
+    const [isDeleting, setIsDeleting] = useState(false);
+    const [isSubmitting, setIsSubmitting] = useState(false);
 
     // CRUD State
     const [showCreateModal, setShowCreateModal] = useState(false);
@@ -116,6 +118,7 @@ export default function AssignedTasks() {
         if (!taskToDelete) return;
 
         try {
+            setIsDeleting(true);
             const response = await api.delete(`/tasks/${taskToDelete._id}`);
             if (response.data.success) {
                 showToast('Task deleted successfully', 'success');
@@ -126,6 +129,8 @@ export default function AssignedTasks() {
         } catch (error) {
             console.error('Delete task error:', error);
             showToast(error.response?.data?.error || 'Failed to delete task', 'error');
+        } finally {
+            setIsDeleting(false);
         }
     };
 
@@ -169,6 +174,7 @@ export default function AssignedTasks() {
         }
 
         try {
+            setIsSubmitting(true);
             const dateStr = dayjs.isDayjs(createFormData.targetDate)
                 ? createFormData.targetDate.format('YYYY-MM-DD')
                 : createFormData.targetDate;
@@ -181,6 +187,7 @@ export default function AssignedTasks() {
 
             if (dueDate < new Date()) {
                 showToast('Target date/time cannot be in the past', 'error');
+                setIsSubmitting(false);
                 return;
             }
 
@@ -245,6 +252,8 @@ export default function AssignedTasks() {
         } catch (error) {
             console.error('Task save error:', error);
             showToast(error.response?.data?.error || 'Failed to save task', 'error');
+        } finally {
+            setIsSubmitting(false);
         }
     };
 
@@ -401,6 +410,7 @@ export default function AssignedTasks() {
 
             <DeleteConfirmationModal
                 isOpen={showDeleteModal}
+                isLoading={isDeleting}
                 onClose={() => {
                     setShowDeleteModal(false);
                     setTaskToDelete(null);
@@ -751,6 +761,8 @@ export default function AssignedTasks() {
                             size="large"
                             className="flex-1 bg-primary hover:bg-primary-600"
                             icon={<Plus className="w-4 h-4" />}
+                            loading={isSubmitting}
+                            disabled={isSubmitting}
                         >
                             {editingTask ? 'Update Task' : 'Create Task'}
                         </Button>
