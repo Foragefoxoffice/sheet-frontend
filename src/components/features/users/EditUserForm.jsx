@@ -79,7 +79,14 @@ export default function EditUserForm({ user: userToEdit, onSuccess, onCancel, de
                 whatsapp: formattedWhatsapp,
             };
 
-            const response = await api.put(`/users/${userToEdit._id}`, requestData);
+            const userId = userToEdit?._id;
+            if (!userId) {
+                showToast('User ID not found. Please close and reopen the form.', 'error');
+                setLoading(false);
+                return;
+            }
+
+            const response = await api.put(`/users/${userId}`, requestData);
 
             if (response.data.success) {
                 showToast(`User ${values.name} updated successfully!`, 'success');

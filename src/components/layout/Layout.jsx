@@ -20,7 +20,12 @@ export default function Layout({ children }) {
     const [isSidebarExpanded, setIsSidebarExpanded] = useState(false);
 
     return (
-        <SidebarContext.Provider value={{ isSidebarExpanded, setIsSidebarExpanded }}>
+        <SidebarContext.Provider value={{
+            isSidebarExpanded,
+            setIsSidebarExpanded,
+            mobileMenuOpen,
+            setMobileMenuOpen
+        }}>
             <div className="flex min-h-screen bg-gray-50">
                 {/* Desktop Sidebar - Hidden on mobile */}
                 <div className="hidden md:block">

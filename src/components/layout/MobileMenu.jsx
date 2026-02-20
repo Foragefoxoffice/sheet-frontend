@@ -1,10 +1,14 @@
 import { useState } from 'react';
-import { X, LogOut, Settings, BarChart3, Users, Building2, Shield, CheckSquare } from 'lucide-react';
+import { X, LogOut, Key, BarChart3, Users, Building2, Shield, CheckSquare } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../../hooks/useAuth';
 
 export default function MobileMenu({ isOpen, onClose }) {
     const { user, logout } = useAuth();
+
+    const userRoleRaw = typeof user?.role === 'string' ? user?.role : user?.role?.name;
+    const userRole = (userRoleRaw || '').toLowerCase().replace(/\s+/g, '');
+    const isSuperAdmin = userRole === 'superadmin';
 
     const menuItems = [
         {
@@ -37,9 +41,17 @@ export default function MobileMenu({ isOpen, onClose }) {
             label: 'Roles',
             permission: 'viewRoles',
         },
+        {
+            path: '/all-passwords',
+            icon: Key,
+            label: 'User Passwords',
+            permission: 'superAdminOnly',
+        },
     ];
 
     const filteredMenuItems = menuItems.filter(item => {
+        if (isSuperAdmin) return true;
+        if (item.permission === 'superAdminOnly') return false;
         if (!item.permission) return true;
         return user?.permissions?.[item.permission] === true;
     });
@@ -103,14 +115,6 @@ export default function MobileMenu({ isOpen, onClose }) {
 
                     <div className="border-t border-gray-200 my-2" />
 
-                    <Link
-                        to="/settings"
-                        onClick={onClose}
-                        className="flex items-center gap-4 px-6 py-4 text-gray-700 hover:bg-gray-50 active:bg-gray-100 transition-colors"
-                    >
-                        <Settings className="w-5 h-5 text-gray-500" />
-                        <span className="font-medium">Settings</span>
-                    </Link>
 
                     <button
                         onClick={handleLogout}

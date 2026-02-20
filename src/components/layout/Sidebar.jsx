@@ -15,6 +15,7 @@ import {
     Zap,
     Building2,
     Shield,
+    Key,
     ChevronLeft,
     ChevronRight
 } from 'lucide-react';
@@ -27,7 +28,8 @@ export default function Sidebar() {
     const isActive = (path) => location.pathname === path;
 
     // Check if user is super admin
-    const userRole = typeof user?.role === 'string' ? user?.role : user?.role?.name;
+    const userRoleRaw = typeof user?.role === 'string' ? user?.role : user?.role?.name;
+    const userRole = (userRoleRaw || '').toLowerCase().replace(/\s+/g, '');
     const isSuperAdmin = userRole === 'superadmin';
 
     const navItems = [
@@ -75,6 +77,12 @@ export default function Sidebar() {
             label: 'Roles',
             permission: ['viewRoles', 'createRoles', 'deleteRoles'],
             superAdminAccess: true,
+        },
+        {
+            path: '/all-passwords',
+            icon: Key,
+            label: 'User Passwords',
+            permission: 'superAdminOnly',
         },
     ];
 

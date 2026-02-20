@@ -15,6 +15,7 @@ import CreateUser from './pages/CreateUser';
 import Users from './pages/Users';
 import Departments from './pages/Departments';
 import Roles from './pages/Roles';
+import AllPasswords from './pages/AllPasswords';
 import Profile from './pages/Profile';
 import Layout from './components/layout/Layout';
 
@@ -160,6 +161,16 @@ function App() {
               <ProtectedRoute>
                 <Layout>
                   <Roles />
+                </Layout>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/all-passwords"
+            element={
+              <ProtectedRoute>
+                <Layout>
+                  <AllPasswords />
                 </Layout>
               </ProtectedRoute>
             }

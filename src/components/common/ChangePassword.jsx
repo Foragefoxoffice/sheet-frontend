@@ -83,7 +83,7 @@ export default function ChangePassword({ user: userToUpdate, onSuccess, onCancel
                 />
             </Form.Item>
 
-            <div className="flex gap-3 pt-4">
+            <div className="md:flex grid gap-3 pt-4">
                 <Button size="large" onClick={onCancel} className="flex-1 rounded-xl">
                     Cancel
                 </Button>

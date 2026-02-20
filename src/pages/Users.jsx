@@ -107,6 +107,7 @@ export default function Users() {
 
     const [showDeleteModal, setShowDeleteModal] = useState(false);
     const [showChangePasswordModal, setShowChangePasswordModal] = useState(false);
+    const [selectedUser, setSelectedUser] = useState(null);
     const [userToDelete, setUserToDelete] = useState(null);
 
     useEffect(() => {
@@ -611,6 +612,7 @@ export default function Users() {
                 title="Edit User"
             >
                 <EditUserForm
+                    key={selectedUser?._id}
                     user={selectedUser}
                     onSuccess={handleEditSuccess}
                     onCancel={() => {

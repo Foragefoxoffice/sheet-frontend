@@ -1,14 +1,17 @@
 import { Home, CheckSquare, PlusCircle, ClipboardCheck, User, Users, Building2, Shield } from 'lucide-react';
 import { Link, useLocation } from 'react-router-dom';
 import { useAuth } from '../../hooks/useAuth';
+import { useSidebar } from './Layout';
 
 export default function MobileNav() {
     const location = useLocation();
     const { user } = useAuth();
+    const { setMobileMenuOpen } = useSidebar();
 
     // Check if user is super admin
-    const userRole = typeof user?.role === 'string' ? user?.role : user?.role?.name;
-    const isSuperAdmin = userRole === 'SuperAdmin';
+    const userRoleRaw = typeof user?.role === 'string' ? user?.role : user?.role?.name;
+    const userRole = (userRoleRaw || '').toLowerCase().replace(/\s+/g, '');
+    const isSuperAdmin = userRole === 'superadmin';
 
     const navItems = [
         {
@@ -95,6 +98,7 @@ export default function MobileNav() {
                         <Link
                             key={item.path}
                             to={item.path}
+                            onClick={() => setMobileMenuOpen(false)}
                             className={`flex flex-col items-center justify-center flex-1 h-full transition-colors ${active
                                 ? 'text-primary'
                                 : 'text-gray-500 hover:text-gray-700'
